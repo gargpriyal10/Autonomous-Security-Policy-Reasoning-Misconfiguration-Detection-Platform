@@ -1,0 +1,3 @@
+Effect,Action,Resource
+Allow,s3:GetObject,arn:aws:s3:::example-bucket/*
+Allow,s3:ListBucket,arn:aws:s3:::example-bucket

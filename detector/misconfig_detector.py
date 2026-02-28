@@ -1,0 +1,159 @@
+from collections import defaultdict
+
+
+# ---------------- MAIN DETECTOR ----------------
+def detect_misconfigurations(rules):
+
+    issues = []
+    risk_score = 0
+    seen = set()
+
+    allow_map = defaultdict(list)
+    deny_map = defaultdict(list)
+
+    # -------- Build Permission Maps --------
+    for rule in rules:
+        effect = rule.get("Effect", "")
+        action = str(rule.get("Action", ""))
+        resource = str(rule.get("Resource", ""))
+
+        if effect == "Allow":
+            allow_map[action].append(resource)
+        elif effect == "Deny":
+            deny_map[action].append(resource)
+
+    # -------- Conflict Detection --------
+    for action in allow_map:
+        if action in deny_map:
+            problem = f"Conflict: {action} has Allow & Deny"
+            if problem not in seen:
+                issues.append({
+                    "risk": "HIGH",
+                    "problem": problem,
+                    "reason": "Conflicting rules may create unpredictable access"
+                })
+                seen.add(problem)
+                risk_score += 50
+
+    # -------- Misconfiguration Detection --------
+    for rule in rules:
+        effect = rule.get("Effect", "")
+        action = str(rule.get("Action", ""))
+        resource = str(rule.get("Resource", ""))
+
+        # CRITICAL
+        if effect == "Allow" and action == "*" and resource == "*":
+            problem = "Full Admin Access"
+            if problem not in seen:
+                issues.append({
+                    "risk": "CRITICAL",
+                    "problem": problem,
+                    "reason": "Complete cloud takeover possible"
+                })
+                seen.add(problem)
+            risk_score += 120
+
+        # Wildcard permission
+        elif effect == "Allow" and "*" in action:
+            problem = f"Wildcard Permission: {action}"
+            if problem not in seen:
+                issues.append({
+                    "risk": "HIGH",
+                    "problem": problem,
+                    "reason": "Broad service access increases attack surface"
+                })
+                seen.add(problem)
+            risk_score += 40
+
+        # All resources
+        elif effect == "Allow" and resource == "*":
+            problem = "Access to All Resources"
+            if problem not in seen:
+                issues.append({
+                    "risk": "HIGH",
+                    "problem": problem,
+                    "reason": "Access not restricted to specific assets"
+                })
+                seen.add(problem)
+            risk_score += 35
+
+        # Read-only
+        elif effect == "Allow" and ("Get" in action or "List" in action):
+            problem = "Read-Only Access"
+            if problem not in seen:
+                issues.append({
+                    "risk": "LOW",
+                    "problem": problem,
+                    "reason": "Limited data exposure risk"
+                })
+                seen.add(problem)
+            risk_score += 10
+
+    # -------- Redundant Rule Detection --------
+    permission_counter = defaultdict(int)
+
+    for rule in rules:
+        key = (rule.get("Effect"), rule.get("Action"), rule.get("Resource"))
+        permission_counter[key] += 1
+
+    for perm, count in permission_counter.items():
+        if count > 1:
+            problem = f"Redundant Rule: {perm[1]}"
+            if problem not in seen:
+                issues.append({
+                    "risk": "MEDIUM",
+                    "problem": problem,
+                    "reason": "Duplicate policies increase complexity"
+                })
+                seen.add(problem)
+                risk_score += 20
+
+    return issues, risk_score
+
+
+# ---------------- AI EXPLANATION ----------------
+def generate_ai_explanation(issues):
+
+    if not issues:
+        return "System analysis shows secure configuration with minimal risk."
+
+    explanation = ""
+
+    for issue in issues:
+        if issue["risk"] == "CRITICAL":
+            explanation += "Critical administrative access detected. "
+        elif issue["risk"] == "HIGH":
+            explanation += "High-risk permissions detected. "
+        elif issue["risk"] == "MEDIUM":
+            explanation += "Moderate configuration redundancy found. "
+        elif issue["risk"] == "LOW":
+            explanation += "Low-risk read-only access detected. "
+
+    explanation += "It is recommended to follow the least privilege principle."
+
+    return explanation
+
+
+# ---------------- RECOMMENDATIONS ----------------
+def generate_recommendations(issues):
+
+    recs = []
+
+    for issue in issues:
+
+        if issue["risk"] == "CRITICAL":
+            recs.append("Immediately remove full administrative access.")
+
+        elif issue["risk"] == "HIGH":
+            recs.append("Avoid wildcard (*) permissions and restrict access.")
+
+        elif issue["risk"] == "MEDIUM":
+            recs.append("Remove redundant duplicate policy rules.")
+
+        elif issue["risk"] == "LOW":
+            recs.append("Review and monitor read-only access periodically.")
+
+    if not recs:
+        recs.append("Configuration appears secure.")
+
+    return recs
