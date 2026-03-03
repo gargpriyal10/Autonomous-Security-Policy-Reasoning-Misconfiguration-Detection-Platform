@@ -1,3 +1,5 @@
+from unittest import result
+
 import streamlit as st
 import json
 import yaml
@@ -6,9 +8,8 @@ import pandas as pd
 import plotly.express as px
 
 from parser.policy_parser import normalize_policy
-from detector.misconfig_detector import detect_misconfigurations, generate_ai_explanation, generate_recommendations
-from graph.policy_graph import build_graph, visualize_graph
-
+from core.policy_engine import analyze_policy
+from graph.policy_graph import visualize_graph
 
 def run_dashboard():
 
@@ -20,9 +21,10 @@ def run_dashboard():
         accept_multiple_files=True
     )
 
+    all_rules = []
+
     if uploaded_files:
 
-        all_rules = []
 
         for file in uploaded_files:
             name = file.name.lower()
@@ -64,10 +66,14 @@ def run_dashboard():
             st.warning("No valid policies detected")
             return
 
-        # -------- ANALYSIS --------
-        issues, risk_score = detect_misconfigurations(all_rules)
-        ai_text = generate_ai_explanation(issues)
-        recs = generate_recommendations(issues)
+        result = analyze_policy(all_rules)
+
+        issues = result["issues"]
+        risk_score = result["risk_score"]
+        ai_text = result["ai_text"]
+        recs = result["recommendations"]
+        G = result["graph"]
+        attack_paths = result["attack_paths"]
 
         # -------- SMART RISK LEVEL MAPPING --------
         if risk_score >= 100:
@@ -147,9 +153,19 @@ def run_dashboard():
         # -------- TAB 4 --------
         with tab4:
             st.subheader("Attack Path Visualization")
-            G = build_graph(all_rules)
+
             visualize_graph(G)
-            st.success("Graph generated → open attack_graph.html")
+
+            st.divider()
+            st.subheader("🧠 Simulated Attack Paths")
+
+
+            if not attack_paths:
+                st.success("No attack paths found.")
+            else:
+                for i, path in enumerate(attack_paths, 1):
+                    formatted_path = " → ".join(path)
+                    st.write(f"**Attack Path {i}:** {formatted_path}")
 
         # -------- DOWNLOAD REPORT --------
         report_data = {

@@ -2,21 +2,17 @@ import networkx as nx
 from pyvis.network import Network
 
 
+# ---------------- BUILD GRAPH ----------------
 def build_graph(rules):
 
     G = nx.DiGraph()
-
-    G.add_node("COMPROMISED_ROLE", color="red")
+    G.add_node("COMPROMISED_ROLE")
 
     for rule in rules:
         action = str(rule.get("Action"))
         resource = str(rule.get("Resource"))
 
         service = action.split(":")[0] if ":" in action else action
-
-        G.add_node(service, color="orange")
-        G.add_node(action, color="blue")
-        G.add_node(resource, color="green")
 
         G.add_edge("COMPROMISED_ROLE", service)
         G.add_edge(service, action)
@@ -25,12 +21,10 @@ def build_graph(rules):
     return G
 
 
+# ---------------- VISUALIZE GRAPH ----------------
 def visualize_graph(G):
 
-    from pyvis.network import Network
     import streamlit.components.v1 as components
-    import tempfile
-    import os
 
     net = Network(height="600px", width="100%", directed=True)
 
@@ -40,16 +34,22 @@ def visualize_graph(G):
     for edge in G.edges():
         net.add_edge(edge[0], edge[1])
 
-    # Save to temporary file
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
-    net.save_graph(tmp_file.name)
-
-    # Read HTML content
-    with open(tmp_file.name, "r", encoding="utf-8") as f:
-        html_content = f.read()
-
-    # Render inside Streamlit
+    html_content = net.generate_html()
     components.html(html_content, height=600)
 
-    # Optional cleanup
-    os.unlink(tmp_file.name)
+
+# ---------------- ATTACK PATH SIMULATION ----------------
+def simulate_attack_paths(G):
+
+    paths = []
+
+    for node in G.nodes():
+        if node != "COMPROMISED_ROLE":
+            try:
+                path = nx.shortest_path(G, "COMPROMISED_ROLE", node)
+                if len(path) > 1:
+                    paths.append(path)
+            except:
+                pass
+
+    return paths
