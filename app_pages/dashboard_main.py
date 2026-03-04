@@ -1,3 +1,5 @@
+from database.db import save_scan , get_scan_history
+
 from unittest import result
 
 import streamlit as st
@@ -92,6 +94,11 @@ def run_dashboard():
             risk_level = "SAFE"
             risk_color = "green"
 
+        # -------- Save scan to DB --------
+        username = "default_user"
+        save_scan(username, risk_score, risk_level, len(issues))
+        
+        st.success("Scan saved successfully!")
         st.markdown(f"""
         ### 🧠 AI Risk Assessment:
         <span style='color:{risk_color}; font-size:22px; font-weight:bold'>
@@ -184,3 +191,42 @@ def run_dashboard():
             file_name="cloud_security_report.json",
             mime="application/json"
         )
+
+        # ---------- SCAN HISTORY SECTION ----------
+    st.divider()
+    st.subheader("📈 Scan History Analytics")
+
+    history = get_scan_history("default_user")
+
+    if history:
+
+        history_df = pd.DataFrame(history, columns=[
+            "Risk Score",
+            "Risk Level",
+            "Issue Count",
+            "Timestamp"
+        ])
+
+        st.dataframe(history_df, use_container_width=True, hide_index=True)
+
+        # Trend chart
+        fig = px.line(
+            history_df,
+            x="Timestamp",
+            y="Risk Score",
+            title="Risk Score Trend Over Time",
+            markers=True
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Additional Metrics
+        avg_risk = history_df["Risk Score"].mean()
+        max_risk = history_df["Risk Score"].max()
+
+        colA, colB = st.columns(2)
+        colA.metric("📊 Average Risk Score", round(avg_risk, 2))
+        colB.metric("🚨 Highest Recorded Risk", max_risk)
+
+    else:
+        st.info("No previous scan history available.")
