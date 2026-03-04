@@ -157,3 +157,27 @@ def generate_recommendations(issues):
         recs.append("Configuration appears secure.")
 
     return recs
+
+
+# ---------------- POLICY CONFLICT DETECTOR ----------------
+def detect_policy_conflicts(rules):
+
+    conflicts = []
+
+    for i in range(len(rules)):
+        for j in range(i + 1, len(rules)):
+
+            rule1 = rules[i]
+            rule2 = rules[j]
+
+            if (
+                rule1.get("Action") == rule2.get("Action")
+                and rule1.get("Effect") != rule2.get("Effect")
+            ):
+                conflicts.append({
+                    "risk": "MEDIUM",
+                    "problem": f"Policy Conflict on action: {rule1.get('Action')}",
+                    "reason": "One policy allows while another denies the same action"
+                })
+
+    return conflicts

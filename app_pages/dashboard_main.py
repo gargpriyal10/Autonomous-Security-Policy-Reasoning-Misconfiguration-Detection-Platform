@@ -13,6 +13,13 @@ from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
 from graph.policy_graph import visualize_graph
 
+from detector.misconfig_detector import (
+    detect_misconfigurations,
+    generate_ai_explanation,
+    generate_recommendations,
+    detect_policy_conflicts
+)
+
 def run_dashboard():
 
     st.title("🔍 AI Cloud Security Interactive Dashboard")
@@ -95,7 +102,7 @@ def run_dashboard():
             risk_color = "green"
 
         # -------- Save scan to DB --------
-        username = "default_user"
+        username = st.session_state["username"]
         save_scan(username, risk_score, risk_level, len(issues))
         
         st.success("Scan saved successfully!")
