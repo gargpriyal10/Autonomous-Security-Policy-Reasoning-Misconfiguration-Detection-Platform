@@ -79,6 +79,7 @@ def run_dashboard():
 
         issues = result["issues"]
         risk_score = result["risk_score"]
+        security_score = result["security_score"]
         ai_text = result["ai_text"]
         recs = result["recommendations"]
         G = result["graph"]
@@ -114,11 +115,12 @@ def run_dashboard():
         """, unsafe_allow_html=True)
 
         # -------- METRICS --------
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         col1.metric("🔴 Risk Score", risk_score)
-        col2.metric("⚠ Issues Found", len(issues))
-        col3.metric("📂 Files Scanned", len(uploaded_files))
+        col2.metric("🛡 Security Score", f"{security_score}/100")
+        col3.metric("⚠ Issues Found", len(issues))
+        col4.metric("📂 Files Scanned", len(uploaded_files))
 
         st.progress(min(risk_score / 150, 1.0))
         st.divider()
