@@ -33,8 +33,8 @@
 
              #mynetwork {
                  width: 100%;
-                 height: 650px;
-                 background-color: #0b0f17;
+                 height: 500px;
+                 background-color: #ffffff;
                  border: 1px solid lightgray;
                  position: relative;
                  float: left;
@@ -42,12 +42,6 @@
 
              
 
-             
-             #config {
-                 float: left;
-                 width: 400px;
-                 height: 600px;
-             }
              
 
              
@@ -63,8 +57,6 @@
         </div>
 
         
-        
-            <div id="config"></div>
         
 
         <script type="text/javascript">
@@ -96,8 +88,8 @@
                   
 
                   // parsing and collecting nodes and edges from the python
-                  nodes = new vis.DataSet([{"color": "#ff4b4b", "font": {"color": "white"}, "id": "COMPROMISED_ROLE", "label": "\ud83d\udea8 COMPROMISED ROLE", "shape": "dot", "size": 40}, {"color": "#3b82f6", "font": {"color": "white"}, "id": "ACTION: s3:*", "label": "ACTION: s3:*", "shape": "dot", "size": 28}, {"color": "#10b981", "font": {"color": "white"}, "id": "RESOURCE: *", "label": "RESOURCE: *", "shape": "dot", "size": 28}, {"color": "#3b82f6", "font": {"color": "white"}, "id": "ACTION: s3:GetObject", "label": "ACTION: s3:GetObject", "shape": "dot", "size": 28}, {"color": "#10b981", "font": {"color": "white"}, "id": "RESOURCE: arn:aws:s3:::example-bucket/*", "label": "RESOURCE: arn:aws:s3:::example-bucket/*", "shape": "dot", "size": 28}, {"color": "#3b82f6", "font": {"color": "white"}, "id": "ACTION: s3:ListBucket", "label": "ACTION: s3:ListBucket", "shape": "dot", "size": 28}, {"color": "#10b981", "font": {"color": "white"}, "id": "RESOURCE: arn:aws:s3:::example-bucket", "label": "RESOURCE: arn:aws:s3:::example-bucket", "shape": "dot", "size": 28}]);
-                  edges = new vis.DataSet([{"arrows": "to", "color": "#9ca3af", "from": "COMPROMISED_ROLE", "smooth": true, "to": "ACTION: s3:*"}, {"arrows": "to", "color": "#9ca3af", "from": "COMPROMISED_ROLE", "smooth": true, "to": "ACTION: s3:GetObject"}, {"arrows": "to", "color": "#9ca3af", "from": "COMPROMISED_ROLE", "smooth": true, "to": "ACTION: s3:ListBucket"}, {"arrows": "to", "color": "#9ca3af", "from": "ACTION: s3:*", "smooth": true, "to": "RESOURCE: *"}, {"arrows": "to", "color": "#9ca3af", "from": "ACTION: s3:GetObject", "smooth": true, "to": "RESOURCE: arn:aws:s3:::example-bucket/*"}, {"arrows": "to", "color": "#9ca3af", "from": "ACTION: s3:ListBucket", "smooth": true, "to": "RESOURCE: arn:aws:s3:::example-bucket"}]);
+                  nodes = new vis.DataSet([{"color": "red", "id": "COMPROMISED_ROLE", "label": "COMPROMISED_ROLE", "shape": "dot", "size": 30}, {"color": "skyblue", "id": "s3", "label": "s3", "shape": "dot", "size": 20}, {"color": "orange", "id": "s3:*", "label": "s3:*", "shape": "dot", "size": 20}, {"color": "skyblue", "id": "*", "label": "*", "shape": "dot", "size": 20}]);
+                  edges = new vis.DataSet([{"arrows": "to", "from": "COMPROMISED_ROLE", "to": "s3"}, {"arrows": "to", "from": "s3", "to": "s3:*"}, {"arrows": "to", "from": "s3:*", "to": "*"}]);
 
                   nodeColors = {};
                   allNodes = nodes.get({ returnType: "Object" });
@@ -110,10 +102,7 @@
 
                   var options = {
     "configure": {
-        "enabled": true,
-        "filter": [
-            "physics"
-        ]
+        "enabled": false
     },
     "edges": {
         "color": {
@@ -130,15 +119,15 @@
         "hideNodesOnDrag": false
     },
     "physics": {
-        "barnesHut": {
-            "avoidOverlap": 0,
+        "enabled": true,
+        "repulsion": {
             "centralGravity": 0.2,
             "damping": 0.09,
-            "gravitationalConstant": -8000,
+            "nodeDistance": 200,
             "springConstant": 0.05,
-            "springLength": 250
+            "springLength": 200
         },
-        "enabled": true,
+        "solver": "repulsion",
         "stabilization": {
             "enabled": true,
             "fit": true,
@@ -152,10 +141,6 @@
                   
 
 
-                  
-                  // if this network requires displaying the configure window,
-                  // put it in its div
-                  options.configure["container"] = document.getElementById("config");
                   
 
                   network = new vis.Network(container, data, options);

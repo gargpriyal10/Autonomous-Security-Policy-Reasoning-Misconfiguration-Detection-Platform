@@ -24,18 +24,32 @@ def build_graph(rules):
 # ---------------- VISUALIZE GRAPH ----------------
 def visualize_graph(G):
 
+    from pyvis.network import Network
+    import streamlit as st
     import streamlit.components.v1 as components
 
-    net = Network(height="600px", width="100%", directed=True)
+    net = Network(height="500px", width="100%", directed=True)
 
     for node in G.nodes():
-        net.add_node(node)
+
+        if node == "COMPROMISED_ROLE":
+            net.add_node(node, color="red", size=30)
+
+        elif ":" in node:
+            net.add_node(node, color="orange", size=20)
+
+        else:
+            net.add_node(node, color="skyblue", size=20)
 
     for edge in G.edges():
         net.add_edge(edge[0], edge[1])
 
-    html_content = net.generate_html()
-    components.html(html_content, height=600)
+    net.repulsion(node_distance=200, central_gravity=0.2)
+
+    net.save_graph("attack_graph.html")
+
+    HtmlFile = open("attack_graph.html", "r", encoding="utf-8")
+    components.html(HtmlFile.read(), height=550)
 
 
 # ---------------- ATTACK PATH SIMULATION ----------------
