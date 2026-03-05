@@ -16,7 +16,7 @@ from detector.misconfig_detector import (
     detect_misconfigurations,
     generate_ai_explanation,
     generate_recommendations,
-    detect_policy_conflicts
+    detect_policy_conflicts,
 )
 
 
@@ -27,7 +27,7 @@ def run_dashboard():
     uploaded_files = st.file_uploader(
         "Upload Cloud Policy Files",
         type=["json", "yaml", "yml", "txt", "csv"],
-        accept_multiple_files=True
+        accept_multiple_files=True,
     )
 
     all_rules = []
@@ -53,11 +53,9 @@ def run_dashboard():
             elif name.endswith(".txt"):
                 text = file.read().decode("utf-8")
                 if "*" in text:
-                    all_rules.append({
-                        "Effect": "Allow",
-                        "Action": "*",
-                        "Resource": "*"
-                    })
+                    all_rules.append(
+                        {"Effect": "Allow", "Action": "*", "Resource": "*"}
+                    )
 
             # CSV
             elif name.endswith(".csv"):
@@ -65,11 +63,13 @@ def run_dashboard():
                 reader = csv.DictReader(decoded)
 
                 for row in reader:
-                    all_rules.append({
-                        "Effect": row.get("Effect", "Allow"),
-                        "Action": row.get("Action", "*"),
-                        "Resource": row.get("Resource", "*")
-                    })
+                    all_rules.append(
+                        {
+                            "Effect": row.get("Effect", "Allow"),
+                            "Action": row.get("Action", "*"),
+                            "Resource": row.get("Resource", "*"),
+                        }
+                    )
 
         if not all_rules:
             st.warning("No valid policies detected")
@@ -109,12 +109,15 @@ def run_dashboard():
 
         st.success("Scan saved successfully!")
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         ### 🧠 AI Risk Assessment:
         <span style='color:{risk_color}; font-size:22px; font-weight:bold'>
         {risk_level}
         </span>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
         # ---------- METRICS ----------
         col1, col2, col3, col4 = st.columns(4)
@@ -128,30 +131,34 @@ def run_dashboard():
         st.divider()
 
         # ---------- SECURITY SCORE GAUGE ----------
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=security_score,
-            title={'text': "🛡 Cloud Security Score"},
-            gauge={
-                'axis': {'range': [0, 100]},
-                'bar': {'color': "green"},
-                'steps': [
-                    {'range': [0, 40], 'color': "red"},
-                    {'range': [40, 70], 'color': "orange"},
-                    {'range': [70, 100], 'color': "lightgreen"}
-                ],
-            }
-        ))
+        fig = go.Figure(
+            go.Indicator(
+                mode="gauge+number",
+                value=security_score,
+                title={"text": "🛡 Cloud Security Score"},
+                gauge={
+                    "axis": {"range": [0, 100]},
+                    "bar": {"color": "green"},
+                    "steps": [
+                        {"range": [0, 40], "color": "red"},
+                        {"range": [40, 70], "color": "orange"},
+                        {"range": [70, 100], "color": "lightgreen"},
+                    ],
+                },
+            )
+        )
 
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------- TABS ----------
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "📊 Risk Analysis",
-            "🤖 AI Explanation",
-            "🛠 Recommendations",
-            "🕸 Attack Graph"
-        ])
+        tab1, tab2, tab3, tab4 = st.tabs(
+            [
+                "📊 Risk Analysis",
+                "🤖 AI Explanation",
+                "🛠 Recommendations",
+                "🕸 Attack Graph",
+            ]
+        )
 
         # ---------- TAB 1 ----------
         with tab1:
@@ -171,8 +178,8 @@ def run_dashboard():
                     "CRITICAL": "🔴 CRITICAL",
                     "HIGH": "🟠 HIGH",
                     "MEDIUM": "🟡 MEDIUM",
-                    "LOW": "🟢 LOW"
-                }   
+                    "LOW": "🟢 LOW",
+                }
 
                 df["risk"] = df["risk"].map(risk_icons).fillna(df["risk"])
 
@@ -185,7 +192,7 @@ def run_dashboard():
                     risk_counts,
                     names="Risk Level",
                     values="Count",
-                    title="Risk Distribution"
+                    title="Risk Distribution",
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
@@ -231,7 +238,7 @@ def run_dashboard():
             "Risk Level": risk_level,
             "Total Issues": len(issues),
             "AI Analysis": ai_text,
-            "Recommendations": recs
+            "Recommendations": recs,
         }
 
         report_text = json.dumps(report_data, indent=4)
@@ -240,7 +247,7 @@ def run_dashboard():
             label="📥 Download Security Report",
             data=report_text,
             file_name="cloud_security_report.json",
-            mime="application/json"
+            mime="application/json",
         )
 
     # ---------- SCAN HISTORY ----------
@@ -251,12 +258,9 @@ def run_dashboard():
     history = get_scan_history(username)
     if history:
 
-        history_df = pd.DataFrame(history, columns=[
-            "Risk Score",
-            "Risk Level",
-            "Issue Count",
-            "Timestamp"
-        ])
+        history_df = pd.DataFrame(
+            history, columns=["Risk Score", "Risk Level", "Issue Count", "Timestamp"]
+        )
 
         st.dataframe(history_df, use_container_width=True, hide_index=True)
 
@@ -265,7 +269,7 @@ def run_dashboard():
             x="Timestamp",
             y="Risk Score",
             title="Risk Score Trend Over Time",
-            markers=True
+            markers=True,
         )
 
         st.plotly_chart(fig, use_container_width=True)

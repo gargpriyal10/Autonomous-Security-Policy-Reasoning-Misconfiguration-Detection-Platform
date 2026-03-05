@@ -27,11 +27,13 @@ def detect_misconfigurations(rules):
         if action in deny_map:
             problem = f"Conflict: {action} has Allow & Deny"
             if problem not in seen:
-                issues.append({
-                    "risk": "HIGH",
-                    "problem": problem,
-                    "reason": "Conflicting rules may create unpredictable access"
-                })
+                issues.append(
+                    {
+                        "risk": "HIGH",
+                        "problem": problem,
+                        "reason": "Conflicting rules may create unpredictable access",
+                    }
+                )
                 seen.add(problem)
                 risk_score += 50
 
@@ -45,11 +47,13 @@ def detect_misconfigurations(rules):
         if effect == "Allow" and action == "*" and resource == "*":
             problem = "Full Admin Access"
             if problem not in seen:
-                issues.append({
-                    "risk": "CRITICAL",
-                    "problem": problem,
-                    "reason": "Complete cloud takeover possible"
-                })
+                issues.append(
+                    {
+                        "risk": "CRITICAL",
+                        "problem": problem,
+                        "reason": "Complete cloud takeover possible",
+                    }
+                )
                 seen.add(problem)
             risk_score += 120
 
@@ -57,11 +61,13 @@ def detect_misconfigurations(rules):
         elif effect == "Allow" and "*" in action:
             problem = f"Wildcard Permission: {action}"
             if problem not in seen:
-                issues.append({
-                    "risk": "HIGH",
-                    "problem": problem,
-                    "reason": "Broad service access increases attack surface"
-                })
+                issues.append(
+                    {
+                        "risk": "HIGH",
+                        "problem": problem,
+                        "reason": "Broad service access increases attack surface",
+                    }
+                )
                 seen.add(problem)
             risk_score += 40
 
@@ -69,11 +75,13 @@ def detect_misconfigurations(rules):
         elif effect == "Allow" and resource == "*":
             problem = "Access to All Resources"
             if problem not in seen:
-                issues.append({
-                    "risk": "HIGH",
-                    "problem": problem,
-                    "reason": "Access not restricted to specific assets"
-                })
+                issues.append(
+                    {
+                        "risk": "HIGH",
+                        "problem": problem,
+                        "reason": "Access not restricted to specific assets",
+                    }
+                )
                 seen.add(problem)
             risk_score += 35
 
@@ -81,11 +89,13 @@ def detect_misconfigurations(rules):
         elif effect == "Allow" and ("Get" in action or "List" in action):
             problem = "Read-Only Access"
             if problem not in seen:
-                issues.append({
-                    "risk": "LOW",
-                    "problem": problem,
-                    "reason": "Limited data exposure risk"
-                })
+                issues.append(
+                    {
+                        "risk": "LOW",
+                        "problem": problem,
+                        "reason": "Limited data exposure risk",
+                    }
+                )
                 seen.add(problem)
             risk_score += 10
 
@@ -100,13 +110,42 @@ def detect_misconfigurations(rules):
         if count > 1:
             problem = f"Redundant Rule: {perm[1]}"
             if problem not in seen:
-                issues.append({
-                    "risk": "MEDIUM",
-                    "problem": problem,
-                    "reason": "Duplicate policies increase complexity"
-                })
+                issues.append(
+                    {
+                        "risk": "MEDIUM",
+                        "problem": problem,
+                        "reason": "Duplicate policies increase complexity",
+                    }
+                )
                 seen.add(problem)
                 risk_score += 20
+
+    # -------- Privilege Escalation Detection --------
+    dangerous_permissions = [
+        "iam:PassRole",
+        "iam:AttachRolePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "sts:AssumeRole",
+    ]
+
+    for rule in rules:
+        action = str(rule.get("Action", ""))
+
+        for perm in dangerous_permissions:
+            if perm.lower() in action.lower():
+                problem = f"Privilege Escalation Risk: {perm}"
+
+                if problem not in seen:
+                    issues.append(
+                        {
+                            "risk": "CRITICAL",
+                            "problem": problem,
+                            "reason": "This permission can allow attackers to escalate privileges.",
+                        }
+                    )
+                    seen.add(problem)
+                    risk_score += 80
 
     return issues, risk_score
 
@@ -170,14 +209,15 @@ def detect_policy_conflicts(rules):
             rule1 = rules[i]
             rule2 = rules[j]
 
-            if (
-                rule1.get("Action") == rule2.get("Action")
-                and rule1.get("Effect") != rule2.get("Effect")
-            ):
-                conflicts.append({
-                    "risk": "MEDIUM",
-                    "problem": f"Policy Conflict on action: {rule1.get('Action')}",
-                    "reason": "One policy allows while another denies the same action"
-                })
+            if rule1.get("Action") == rule2.get("Action") and rule1.get(
+                "Effect"
+            ) != rule2.get("Effect"):
+                conflicts.append(
+                    {
+                        "risk": "MEDIUM",
+                        "problem": f"Policy Conflict on action: {rule1.get('Action')}",
+                        "reason": "One policy allows while another denies the same action",
+                    }
+                )
 
     return conflicts
