@@ -82,6 +82,7 @@ def run_dashboard():
         risk_score = result["risk_score"]
         security_score = result["security_score"]
         ai_text = result["ai_text"]
+        ai_summary = result["ai_summary"]
         recs = result["recommendations"]
         G = result["graph"]
         attack_paths = result["attack_paths"]
@@ -202,6 +203,8 @@ def run_dashboard():
 
             st.subheader("AI Security Explanation")
             st.info(ai_text)
+            st.subheader("🧠 AI Security Summary")
+            st.success(ai_summary)
 
         # ---------- TAB 3 ----------
         with tab3:

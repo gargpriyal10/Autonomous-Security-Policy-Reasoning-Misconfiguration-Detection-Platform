@@ -2,13 +2,11 @@ from detector.misconfig_detector import (
     detect_misconfigurations,
     generate_ai_explanation,
     generate_recommendations,
-    detect_policy_conflicts
+    detect_policy_conflicts,
+    generate_ai_summary,
 )
 
-from graph.policy_graph import (
-    build_graph,
-    simulate_attack_paths
-)
+from graph.policy_graph import build_graph, simulate_attack_paths
 
 
 # ---------------- SECURITY POSTURE SCORE ----------------
@@ -26,6 +24,7 @@ def analyze_policy(rules):
 
     # Detect misconfigurations
     issues, risk_score = detect_misconfigurations(rules)
+    ai_summary = generate_ai_summary(issues, risk_score)
 
     # -------- POLICY CONFLICT DETECTION --------
     conflicts = detect_policy_conflicts(rules)
@@ -56,7 +55,8 @@ def analyze_policy(rules):
         "risk_score": risk_score,
         "security_score": security_score,
         "ai_text": ai_text,
+        "ai_summary": ai_summary,
         "recommendations": recs,
         "graph": G,
-        "attack_paths": attack_paths
+        "attack_paths": attack_paths,
     }
