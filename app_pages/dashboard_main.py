@@ -12,13 +12,6 @@ from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
 from graph.policy_graph import visualize_graph
 
-from detector.misconfig_detector import (
-    detect_misconfigurations,
-    generate_ai_explanation,
-    generate_recommendations,
-    detect_policy_conflicts,
-)
-
 
 def run_dashboard():
 
@@ -35,29 +28,29 @@ def run_dashboard():
     if uploaded_files:
 
         for file in uploaded_files:
+
             name = file.name.lower()
 
-            # JSON
             if name.endswith(".json"):
                 data = json.load(file)
+
                 if "Statement" in data:
                     all_rules.extend(normalize_policy(data))
 
-            # YAML
             elif name.endswith(".yaml") or name.endswith(".yml"):
                 data = yaml.safe_load(file)
+
                 if data and "Statement" in data:
                     all_rules.extend(normalize_policy(data))
 
-            # TXT
             elif name.endswith(".txt"):
                 text = file.read().decode("utf-8")
+
                 if "*" in text:
                     all_rules.append(
                         {"Effect": "Allow", "Action": "*", "Resource": "*"}
                     )
 
-            # CSV
             elif name.endswith(".csv"):
                 decoded = file.read().decode("utf-8").splitlines()
                 reader = csv.DictReader(decoded)
@@ -75,7 +68,6 @@ def run_dashboard():
             st.warning("No valid policies detected")
             return
 
-        # ---------- ANALYZE POLICY ----------
         result = analyze_policy(all_rules)
 
         issues = result["issues"]
@@ -87,7 +79,6 @@ def run_dashboard():
         G = result["graph"]
         attack_paths = result["attack_paths"]
 
-        # ---------- RISK LEVEL ----------
         if risk_score >= 100:
             risk_level = "CRITICAL"
             risk_color = "red"
@@ -104,42 +95,39 @@ def run_dashboard():
             risk_level = "SAFE"
             risk_color = "green"
 
-        # ---------- SAVE SCAN ----------
         username = st.session_state["username"]
+
         save_scan(username, risk_score, risk_level, len(issues))
 
-        st.success("Scan saved successfully!")
+        st.success("Scan saved successfully")
 
         st.markdown(
             f"""
-        ### 🧠 AI Risk Assessment:
-        <span style='color:{risk_color}; font-size:22px; font-weight:bold'>
-        {risk_level}
-        </span>
-        """,
+            ### 🧠 AI Risk Assessment
+            <span style='color:{risk_color}; font-size:22px; font-weight:bold'>
+            {risk_level}
+            </span>
+            """,
             unsafe_allow_html=True,
         )
 
-        # ---------- METRICS ----------
         col1, col2, col3, col4 = st.columns(4)
 
-        col1.metric("🔴 Risk Score", risk_score)
-        col2.metric("🛡 Security Score", f"{security_score}/100")
-        col3.metric("⚠ Issues Found", len(issues))
-        col4.metric("📂 Files Scanned", len(uploaded_files))
+        col1.metric("Risk Score", risk_score)
+        col2.metric("Security Score", f"{security_score}/100")
+        col3.metric("Issues Found", len(issues))
+        col4.metric("Files Scanned", len(uploaded_files))
 
         st.progress(min(risk_score / 150, 1.0))
         st.divider()
 
-        # ---------- SECURITY SCORE GAUGE ----------
         fig = go.Figure(
             go.Indicator(
                 mode="gauge+number",
                 value=security_score,
-                title={"text": "🛡 Cloud Security Score"},
+                title={"text": "Cloud Security Score"},
                 gauge={
                     "axis": {"range": [0, 100]},
-                    "bar": {"color": "green"},
                     "steps": [
                         {"range": [0, 40], "color": "red"},
                         {"range": [40, 70], "color": "orange"},
@@ -151,17 +139,10 @@ def run_dashboard():
 
         st.plotly_chart(fig, use_container_width=True)
 
-        # ---------- TABS ----------
         tab1, tab2, tab3, tab4 = st.tabs(
-            [
-                "📊 Risk Analysis",
-                "🤖 AI Explanation",
-                "🛠 Recommendations",
-                "🕸 Attack Graph",
-            ]
+            ["Risk Analysis", "AI Explanation", "Recommendations", "Attack Graph"]
         )
 
-        # ---------- TAB 1 ----------
         with tab1:
 
             st.subheader("Detected Security Issues")
@@ -170,11 +151,13 @@ def run_dashboard():
                 st.success("No major risks detected")
 
             else:
-
                 df = pd.DataFrame(issues)
+
+                if "service" not in df.columns:
+                    df["service"] = "Unknown"
+
                 df.insert(0, "Issue No.", range(1, len(df) + 1))
 
-                # Add color indicators to risk levels
                 risk_icons = {
                     "CRITICAL": "🔴 CRITICAL",
                     "HIGH": "🟠 HIGH",
@@ -184,29 +167,30 @@ def run_dashboard():
 
                 df["risk"] = df["risk"].map(risk_icons).fillna(df["risk"])
 
+                df = df[["Issue No.", "service", "risk", "problem", "reason"]]
+
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
                 risk_counts = df["risk"].value_counts().reset_index()
                 risk_counts.columns = ["Risk Level", "Count"]
 
-                fig = px.pie(
+                pie = px.pie(
                     risk_counts,
                     names="Risk Level",
                     values="Count",
                     title="Risk Distribution",
                 )
 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(pie, use_container_width=True)
 
-        # ---------- TAB 2 ----------
         with tab2:
 
             st.subheader("AI Security Explanation")
             st.info(ai_text)
-            st.subheader("🧠 AI Security Summary")
+
+            st.subheader("AI Security Summary")
             st.success(ai_summary)
 
-        # ---------- TAB 3 ----------
         with tab3:
 
             st.subheader("Recommended Fixes")
@@ -214,7 +198,6 @@ def run_dashboard():
             for r in recs:
                 st.write("✔", r)
 
-        # ---------- TAB 4 ----------
         with tab4:
 
             st.subheader("Attack Path Visualization")
@@ -223,23 +206,20 @@ def run_dashboard():
 
             st.divider()
 
-            st.subheader("🧠 Simulated Attack Paths")
+            st.subheader("Simulated Attack Paths")
 
             if not attack_paths:
-                st.success("No attack paths found.")
+                st.success("No attack paths found")
 
             else:
                 for i, path in enumerate(attack_paths, 1):
+                    formatted = " → ".join(path)
+                    st.write(f"Attack Path {i}: {formatted}")
 
-                    formatted_path = " → ".join(path)
-
-                    st.write(f"**Attack Path {i}:** {formatted_path}")
-
-        # ---------- DOWNLOAD REPORT ----------
         report_data = {
             "Risk Score": risk_score,
             "Risk Level": risk_level,
-            "Total Issues": len(issues),
+            "Issues": len(issues),
             "AI Analysis": ai_text,
             "Recommendations": recs,
         }
@@ -247,18 +227,18 @@ def run_dashboard():
         report_text = json.dumps(report_data, indent=4)
 
         st.download_button(
-            label="📥 Download Security Report",
+            label="Download Security Report",
             data=report_text,
             file_name="cloud_security_report.json",
             mime="application/json",
         )
 
-    # ---------- SCAN HISTORY ----------
     st.divider()
-    st.subheader("📈 Scan History Analytics")
+    st.subheader("Scan History Analytics")
 
     username = st.session_state["username"]
     history = get_scan_history(username)
+
     if history:
 
         history_df = pd.DataFrame(
@@ -267,23 +247,23 @@ def run_dashboard():
 
         st.dataframe(history_df, use_container_width=True, hide_index=True)
 
-        fig = px.line(
+        line = px.line(
             history_df,
             x="Timestamp",
             y="Risk Score",
-            title="Risk Score Trend Over Time",
+            title="Risk Score Trend",
             markers=True,
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(line, use_container_width=True)
 
         avg_risk = history_df["Risk Score"].mean()
         max_risk = history_df["Risk Score"].max()
 
         colA, colB = st.columns(2)
 
-        colA.metric("📊 Average Risk Score", round(avg_risk, 2))
-        colB.metric("🚨 Highest Recorded Risk", max_risk)
+        colA.metric("Average Risk Score", round(avg_risk, 2))
+        colB.metric("Highest Risk Score", max_risk)
 
     else:
         st.info("No previous scan history available.")

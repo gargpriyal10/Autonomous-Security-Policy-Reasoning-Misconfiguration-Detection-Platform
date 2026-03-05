@@ -32,7 +32,8 @@ def detect_misconfigurations(rules):
                     {
                         "risk": "HIGH",
                         "problem": problem,
-                        "reason": "Conflicting rules may create unpredictable access",
+                        "reason": "Broad service access increases attack surface",
+                        "service": detect_service(action),
                     }
                 )
 
@@ -53,6 +54,7 @@ def detect_misconfigurations(rules):
             if problem not in seen:
                 issues.append(
                     {
+                        "service": detect_service(action),
                         "risk": "CRITICAL",
                         "problem": problem,
                         "reason": "Complete cloud takeover possible",
@@ -87,6 +89,7 @@ def detect_misconfigurations(rules):
             if problem not in seen:
                 issues.append(
                     {
+                        "service": detect_service(action),
                         "risk": "HIGH",
                         "problem": problem,
                         "reason": "Access not restricted to specific assets",
@@ -104,6 +107,7 @@ def detect_misconfigurations(rules):
             if problem not in seen:
                 issues.append(
                     {
+                        "service": detect_service(action),
                         "risk": "LOW",
                         "problem": problem,
                         "reason": "Limited data exposure risk",
@@ -137,6 +141,7 @@ def detect_misconfigurations(rules):
 
                     issues.append(
                         {
+                            "service": detect_service(action),
                             "risk": "CRITICAL",
                             "problem": problem,
                             "reason": "This permission can allow attackers to escalate privileges.",
@@ -248,3 +253,27 @@ def generate_ai_summary(issues, risk_score):
     summary += "Applying the least privilege principle and restricting wildcard permissions is recommended."
 
     return summary
+
+
+# ---------------- SERVICE DETECTOR ----------------
+def detect_service(action):
+
+    action = action.lower()
+
+    if action.startswith("s3"):
+        return "S3"
+
+    elif action.startswith("ec2"):
+        return "EC2"
+
+    elif action.startswith("iam"):
+        return "IAM"
+
+    elif action.startswith("lambda"):
+        return "Lambda"
+
+    elif action.startswith("dynamodb"):
+        return "DynamoDB"
+
+    else:
+        return "Other"
