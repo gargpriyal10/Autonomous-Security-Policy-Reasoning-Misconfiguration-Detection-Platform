@@ -166,6 +166,16 @@ def run_dashboard():
                 df = pd.DataFrame(issues)
                 df.insert(0, "Issue No.", range(1, len(df) + 1))
 
+                # Add color indicators to risk levels
+                risk_icons = {
+                    "CRITICAL": "🔴 CRITICAL",
+                    "HIGH": "🟠 HIGH",
+                    "MEDIUM": "🟡 MEDIUM",
+                    "LOW": "🟢 LOW"
+                }   
+
+                df["risk"] = df["risk"].map(risk_icons).fillna(df["risk"])
+
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
                 risk_counts = df["risk"].value_counts().reset_index()
