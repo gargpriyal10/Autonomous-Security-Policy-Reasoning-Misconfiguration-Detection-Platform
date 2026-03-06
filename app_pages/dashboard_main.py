@@ -68,6 +68,7 @@ def run_dashboard():
             st.warning("No valid policies detected")
             return
 
+        # Run analyzer
         result = analyze_policy(all_rules)
 
         issues = result["issues"]
@@ -79,6 +80,7 @@ def run_dashboard():
         G = result["graph"]
         attack_paths = result["attack_paths"]
 
+        # Risk level mapping
         if risk_score >= 100:
             risk_level = "CRITICAL"
             risk_color = "red"
@@ -139,10 +141,17 @@ def run_dashboard():
 
         st.plotly_chart(fig, use_container_width=True)
 
-        tab1, tab2, tab3, tab4 = st.tabs(
-            ["Risk Analysis", "AI Explanation", "Recommendations", "Attack Graph"]
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(
+            [
+                "Risk Analysis",
+                "AI Explanation",
+                "Recommendations",
+                "Attack Graph",
+                "Service Analytics",
+            ]
         )
 
+        # ---------------- Risk Analysis ----------------
         with tab1:
 
             st.subheader("Detected Security Issues")
@@ -183,6 +192,7 @@ def run_dashboard():
 
                 st.plotly_chart(pie, use_container_width=True)
 
+        # ---------------- AI Explanation ----------------
         with tab2:
 
             st.subheader("AI Security Explanation")
@@ -191,6 +201,7 @@ def run_dashboard():
             st.subheader("AI Security Summary")
             st.success(ai_summary)
 
+        # ---------------- Recommendations ----------------
         with tab3:
 
             st.subheader("Recommended Fixes")
@@ -198,6 +209,7 @@ def run_dashboard():
             for r in recs:
                 st.write("✔", r)
 
+        # ---------------- Attack Graph ----------------
         with tab4:
 
             st.subheader("Attack Path Visualization")
@@ -216,6 +228,42 @@ def run_dashboard():
                     formatted = " → ".join(path)
                     st.write(f"Attack Path {i}: {formatted}")
 
+        # ---------------- Service Analytics ----------------
+        with tab5:
+
+            st.subheader("Cloud Service Risk Analytics")
+
+            if issues:
+
+                df = pd.DataFrame(issues)
+
+                if "service" not in df.columns:
+                    st.info("No service information available.")
+
+                else:
+
+                    service_counts = df["service"].value_counts().reset_index()
+                    service_counts.columns = ["Service", "Issues"]
+
+                    st.dataframe(
+                        service_counts, use_container_width=True, hide_index=True
+                    )
+
+                    fig = px.bar(
+                        service_counts,
+                        x="Service",
+                        y="Issues",
+                        title="Security Issues by Cloud Service",
+                        text="Issues",
+                        color="Issues",
+                    )
+
+                    st.plotly_chart(fig, use_container_width=True)
+
+            else:
+                st.info("No issues detected to analyze services.")
+
+        # -------- Download Report --------
         report_data = {
             "Risk Score": risk_score,
             "Risk Level": risk_level,
@@ -233,6 +281,7 @@ def run_dashboard():
             mime="application/json",
         )
 
+    # ---------------- Scan History ----------------
     st.divider()
     st.subheader("Scan History Analytics")
 
@@ -242,7 +291,8 @@ def run_dashboard():
     if history:
 
         history_df = pd.DataFrame(
-            history, columns=["Risk Score", "Risk Level", "Issue Count", "Timestamp"]
+            history,
+            columns=["Risk Score", "Risk Level", "Issue Count", "Timestamp"],
         )
 
         st.dataframe(history_df, use_container_width=True, hide_index=True)
