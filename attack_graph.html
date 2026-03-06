@@ -88,8 +88,8 @@
                   
 
                   // parsing and collecting nodes and edges from the python
-                  nodes = new vis.DataSet([{"color": "red", "id": "COMPROMISED_ROLE", "label": "COMPROMISED_ROLE", "shape": "dot", "size": 30}, {"color": "skyblue", "id": "s3", "label": "s3", "shape": "dot", "size": 20}, {"color": "orange", "id": "s3:GetObject", "label": "s3:GetObject", "shape": "dot", "size": 20}, {"color": "orange", "id": "arn:aws:s3:::example-bucket/*", "label": "arn:aws:s3:::example-bucket/*", "shape": "dot", "size": 20}, {"color": "orange", "id": "s3:ListBucket", "label": "s3:ListBucket", "shape": "dot", "size": 20}, {"color": "orange", "id": "arn:aws:s3:::example-bucket", "label": "arn:aws:s3:::example-bucket", "shape": "dot", "size": 20}]);
-                  edges = new vis.DataSet([{"arrows": "to", "from": "COMPROMISED_ROLE", "to": "s3"}, {"arrows": "to", "from": "s3", "to": "s3:GetObject"}, {"arrows": "to", "from": "s3", "to": "s3:ListBucket"}, {"arrows": "to", "from": "s3:GetObject", "to": "arn:aws:s3:::example-bucket/*"}, {"arrows": "to", "from": "s3:ListBucket", "to": "arn:aws:s3:::example-bucket"}]);
+                  nodes = new vis.DataSet([{"color": "red", "id": "COMPROMISED_ROLE", "label": "COMPROMISED_ROLE", "shape": "dot", "size": 30}, {"color": "skyblue", "id": "*", "label": "*", "shape": "dot", "size": 20}]);
+                  edges = new vis.DataSet([{"arrows": "to", "from": "COMPROMISED_ROLE", "to": "*"}, {"arrows": "to", "from": "*", "to": "*"}]);
 
                   nodeColors = {};
                   allNodes = nodes.get({ returnType: "Object" });

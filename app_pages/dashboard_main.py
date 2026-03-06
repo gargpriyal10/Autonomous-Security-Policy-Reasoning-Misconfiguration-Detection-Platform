@@ -13,6 +13,9 @@ from core.policy_engine import analyze_policy
 from graph.policy_graph import visualize_graph
 
 
+st.set_page_config(layout="wide")
+
+
 def run_dashboard():
 
     st.title("🔍 AI Cloud Security Interactive Dashboard")
@@ -68,7 +71,6 @@ def run_dashboard():
             st.warning("No valid policies detected")
             return
 
-        # Run analyzer
         result = analyze_policy(all_rules)
 
         issues = result["issues"]
@@ -80,7 +82,7 @@ def run_dashboard():
         G = result["graph"]
         attack_paths = result["attack_paths"]
 
-        # Risk level mapping
+        # Risk level
         if risk_score >= 100:
             risk_level = "CRITICAL"
             risk_color = "red"
@@ -123,6 +125,7 @@ def run_dashboard():
         st.progress(min(risk_score / 150, 1.0))
         st.divider()
 
+        # Security score gauge
         fig = go.Figure(
             go.Indicator(
                 mode="gauge+number",
@@ -167,17 +170,6 @@ def run_dashboard():
 
                 df.insert(0, "Issue No.", range(1, len(df) + 1))
 
-                risk_icons = {
-                    "CRITICAL": "🔴 CRITICAL",
-                    "HIGH": "🟠 HIGH",
-                    "MEDIUM": "🟡 MEDIUM",
-                    "LOW": "🟢 LOW",
-                }
-
-                df["risk"] = df["risk"].map(risk_icons).fillna(df["risk"])
-
-                df = df[["Issue No.", "service", "risk", "problem", "reason"]]
-
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
                 risk_counts = df["risk"].value_counts().reset_index()
@@ -218,15 +210,12 @@ def run_dashboard():
 
             st.divider()
 
-            st.subheader("Simulated Attack Paths")
-
             if not attack_paths:
                 st.success("No attack paths found")
 
             else:
                 for i, path in enumerate(attack_paths, 1):
-                    formatted = " → ".join(path)
-                    st.write(f"Attack Path {i}: {formatted}")
+                    st.write(f"Attack Path {i}: {' → '.join(path)}")
 
         # ---------------- Service Analytics ----------------
         with tab5:
@@ -251,8 +240,9 @@ def run_dashboard():
 
                     fig = px.bar(
                         service_counts,
-                        x="Service",
-                        y="Issues",
+                        x="Issues",
+                        y="Service",
+                        orientation="h",
                         title="Security Issues by Cloud Service",
                         text="Issues",
                         color="Issues",
@@ -260,10 +250,30 @@ def run_dashboard():
 
                     st.plotly_chart(fig, use_container_width=True)
 
+                    # Attack surface chart
+                    st.divider()
+                    st.subheader("🚨 Cloud Attack Surface")
+
+                    top_services = service_counts.sort_values(
+                        by="Issues", ascending=False
+                    ).head(5)
+
+                    fig2 = px.bar(
+                        top_services,
+                        x="Issues",
+                        y="Service",
+                        orientation="h",
+                        title="Top Risky Cloud Services",
+                        text="Issues",
+                        color_discrete_sequence=["#4CAF50"],
+                    )
+
+                    st.plotly_chart(fig2, use_container_width=True)
+
             else:
                 st.info("No issues detected to analyze services.")
 
-        # -------- Download Report --------
+        # Download report
         report_data = {
             "Risk Score": risk_score,
             "Risk Level": risk_level,
@@ -307,13 +317,10 @@ def run_dashboard():
 
         st.plotly_chart(line, use_container_width=True)
 
-        avg_risk = history_df["Risk Score"].mean()
-        max_risk = history_df["Risk Score"].max()
-
         colA, colB = st.columns(2)
 
-        colA.metric("Average Risk Score", round(avg_risk, 2))
-        colB.metric("Highest Risk Score", max_risk)
+        colA.metric("Average Risk Score", round(history_df["Risk Score"].mean(), 2))
+        colB.metric("Highest Risk Score", history_df["Risk Score"].max())
 
     else:
         st.info("No previous scan history available.")

@@ -275,5 +275,17 @@ def detect_service(action):
     elif action.startswith("dynamodb"):
         return "DynamoDB"
 
+    elif action.startswith("logs"):
+        return "CloudWatch"
+
+    elif action.startswith("cloudwatch"):
+        return "CloudWatch"
+
+    elif action.startswith("sns"):
+        return "SNS"
+
+    elif action.startswith("sqs"):
+        return "SQS"
+
     else:
         return "Other"
