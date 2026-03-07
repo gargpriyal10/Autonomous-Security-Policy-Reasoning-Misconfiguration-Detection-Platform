@@ -1,77 +1,182 @@
-# 🔐 AI Cloud Security Policy Analyzer
+# Autonomous Security Policy Reasoning & Misconfiguration Detection Platform
 
-Autonomous Security Policy Reasoning & Misconfiguration Detection Platform.
+## Overview
 
-This project analyzes cloud IAM policies to detect **misconfigurations, excessive permissions, and potential attack paths** using a graph-based reasoning engine and provides results through an **interactive Streamlit dashboard**.
+The **Autonomous Security Policy Reasoning Platform** is a cloud security analysis system designed to detect **IAM misconfigurations, privilege escalation risks, and policy conflicts** in cloud policies.
 
----
+The platform analyzes uploaded policy files and generates **security insights, risk scores, recommendations, and attack path simulations**.
 
-## 🚀 Features
-
-* Detects IAM policy misconfigurations
-* Identifies wildcard and overly permissive access
-* Finds **policy conflicts**
-* Generates **attack path graphs**
-* Calculates **Cloud Security Score**
-* Provides **AI-based security explanations**
-* Interactive dashboard with analytics
-* Downloadable security report
+The system is implemented as a **full-stack web application using Flask**, allowing users to upload policies and interactively view security analytics.
 
 ---
 
-## 🧠 How It Works
+## Features
 
-1. Upload cloud policy files (JSON/YAML/TXT/CSV)
-2. Policies are normalized
-3. Security engine detects risks and conflicts
-4. Attack graph is generated
-5. Risk score and security score are calculated
-6. Results are shown in the interactive dashboard
-
----
-
-## 🛠 Tech Stack
-
-* Python
-* Streamlit
-* Plotly
-* NetworkX
-* PyVis
-* SQLite
-* Pandas
+- Detects **IAM misconfigurations** such as wildcard permissions and excessive access.
+- Identifies **policy conflicts** between Allow and Deny rules.
+- Detects **privilege escalation risks** in cloud IAM policies.
+- Generates **AI-based explanations and security summaries**.
+- Simulates **attack paths using graph modeling**.
+- Provides **service-level risk analytics** for cloud resources.
+- Maintains **scan history analytics** for security monitoring.
+- Supports **multiple policy formats**:
+  - JSON
+  - YAML
+  - TXT
+  - CSV
 
 ---
 
-## 📂 Supported Policy Formats
+## Technology Stack
 
-* JSON
-* YAML / YML
-* TXT
-* CSV
+### Backend
+- Python
+- Flask
+
+### Frontend
+- HTML
+- JavaScript
+
+### Data Processing
+- Pandas
+
+### Visualization
+- Plotly
+
+### Graph Analysis
+- NetworkX
+- PyVis
 
 ---
 
-## ⚙️ Run the Project
+## Project Architecture
+
+```
+Frontend (HTML + JavaScript)
+        ↓
+Flask Backend API
+        ↓
+Policy Analysis Engine
+        ↓
+Graph Simulation Engine
+        ↓
+SQLite Database
+```
+
+---
+
+## Project Structure
+
+```
+autonomous-security-policy-analyzer
+│
+├── app.py                # Flask backend server
+│
+├── core/                 # Policy analysis engine
+├── detector/             # Misconfiguration detection logic
+├── parser/               # Policy normalization and parsing
+├── graph/                # Attack path simulation
+├── database/             # Scan history storage
+│
+├── templates/            # HTML frontend pages
+│   └── index.html
+│
+├── static/               # CSS and JavaScript files
+│
+├── data/                 # Sample policies
+│
+└── requirements.txt
+```
+
+---
+
+## How It Works
+
+1. User uploads a cloud policy file.
+2. The system parses the policy and normalizes the rules.
+3. The **security engine analyzes the policy** for:
+   - misconfigurations
+   - privilege escalation
+   - policy conflicts
+4. A **risk score and security posture score** are calculated.
+5. Attack paths are simulated using graph analysis.
+6. Results are displayed on the dashboard with charts and tables.
+
+---
+
+## Installation
 
 Clone the repository:
 
+```
 git clone https://github.com/gargpriyal10/Autonomous-Security-Policy-Reasoning-Misconfiguration-Detection-Platform.git
+```
 
-Go to the project directory:
+Move to the project directory:
 
+```
 cd Autonomous-Security-Policy-Reasoning-Misconfiguration-Detection-Platform
+```
 
 Install dependencies:
 
+```
 pip install -r requirements.txt
-
-Run the dashboard:
-
-streamlit run app/dashboard.py
+```
 
 ---
 
-## 👨‍💻 Author
+## Running the Application
 
-Priyal Garg
+Start the Flask server:
+
+```
+python app.py
+```
+
+Open the application in your browser:
+
+```
+http://127.0.0.1:5000
+```
+
+Upload a policy file to begin analysis.
+
+---
+
+## Example Output
+
+The system generates:
+
+- Risk Score
+- Security Score
+- Detected Security Issues
+- Recommendations
+- Attack Path Visualization
+- Cloud Service Risk Analytics
+
+---
+
+## Future Improvements
+
+- Heatmap visualization for service risk exposure
+- Automated remediation suggestions
+- Integration with real cloud environments
+- User authentication and multi-user support
+
+---
+
+## Author
+
+**Priyal Garg**  
 Computer Science Engineering Student
+
+---
+
+## Repository
+
+GitHub Repository:
+
+```
+https://github.com/gargpriyal10/Autonomous-Security-Policy-Reasoning-Misconfiguration-Detection-Platform
+```
