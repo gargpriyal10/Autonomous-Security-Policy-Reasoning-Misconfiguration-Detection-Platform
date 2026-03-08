@@ -20,27 +20,25 @@ def analyze():
     uploaded_file = request.files.get("file")
 
     if not uploaded_file:
-        return jsonify({"error": "No file uploaded"}), 400
+        return jsonify({"error": "No file uploaded"})
 
-    name = uploaded_file.filename.lower()
+    filename = uploaded_file.filename.lower()
+
     rules = []
 
-    # JSON
-    if name.endswith(".json"):
+    if filename.endswith(".json"):
         data = json.load(uploaded_file)
 
         if "Statement" in data:
             rules.extend(normalize_policy(data))
 
-    # YAML
-    elif name.endswith(".yaml") or name.endswith(".yml"):
+    elif filename.endswith(".yaml") or filename.endswith(".yml"):
         data = yaml.safe_load(uploaded_file)
 
         if data and "Statement" in data:
             rules.extend(normalize_policy(data))
 
-    # CSV
-    elif name.endswith(".csv"):
+    elif filename.endswith(".csv"):
         decoded = uploaded_file.read().decode("utf-8").splitlines()
         reader = csv.DictReader(decoded)
 
@@ -53,18 +51,19 @@ def analyze():
                 }
             )
 
-    # TXT
-    elif name.endswith(".txt"):
+    elif filename.endswith(".txt"):
+
         text = uploaded_file.read().decode("utf-8")
 
         if "*" in text:
             rules.append({"Effect": "Allow", "Action": "*", "Resource": "*"})
 
     if not rules:
-        return jsonify({"error": "Invalid policy file"}), 400
+        return jsonify({"error": "Invalid policy file"})
 
     result = analyze_policy(rules)
 
+    result.pop("graph",None)
     return jsonify(result)
 
 
