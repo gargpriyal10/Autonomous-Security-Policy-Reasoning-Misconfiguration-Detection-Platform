@@ -168,7 +168,8 @@ The system generates:
 
 ## Author
 
-**Priyal Garg**  
+**Priyal Garg**
+**Shrishti Agarwal**
 Computer Science Engineering Student
 
 ---
