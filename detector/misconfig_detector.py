@@ -30,10 +30,10 @@ def detect_misconfigurations(rules):
             if problem not in seen:
                 issues.append(
                     {
+                        "service": detect_service(action),
                         "risk": "HIGH",
                         "problem": problem,
                         "reason": "Broad service access increases attack surface",
-                        "service": detect_service(action),
                     }
                 )
 
@@ -72,6 +72,7 @@ def detect_misconfigurations(rules):
             if problem not in seen:
                 issues.append(
                     {
+                        "service": detect_service(action),  # ADDED
                         "risk": "HIGH",
                         "problem": problem,
                         "reason": "Broad service access increases attack surface",
@@ -224,6 +225,7 @@ def detect_policy_conflicts(rules):
 
                 conflicts.append(
                     {
+                        "service": detect_service(rule1.get("Action", "")),  # ADDED
                         "risk": "MEDIUM",
                         "problem": f"Policy Conflict on action: {rule1.get('Action')}",
                         "reason": "One policy allows while another denies the same action",

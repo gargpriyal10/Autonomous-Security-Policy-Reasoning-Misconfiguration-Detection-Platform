@@ -26,18 +26,21 @@ def analyze():
 
     rules = []
 
+    # JSON file
     if filename.endswith(".json"):
         data = json.load(uploaded_file)
 
         if "Statement" in data:
             rules.extend(normalize_policy(data))
 
+    # YAML file
     elif filename.endswith(".yaml") or filename.endswith(".yml"):
         data = yaml.safe_load(uploaded_file)
 
         if data and "Statement" in data:
             rules.extend(normalize_policy(data))
 
+    # CSV file
     elif filename.endswith(".csv"):
         decoded = uploaded_file.read().decode("utf-8").splitlines()
         reader = csv.DictReader(decoded)
@@ -51,8 +54,8 @@ def analyze():
                 }
             )
 
+    # TXT file
     elif filename.endswith(".txt"):
-
         text = uploaded_file.read().decode("utf-8")
 
         if "*" in text:
@@ -61,10 +64,20 @@ def analyze():
     if not rules:
         return jsonify({"error": "Invalid policy file"})
 
+    # Run policy analysis
     result = analyze_policy(rules)
 
-    result.pop("graph",None)
-    return jsonify(result)
+    # Remove graph (NetworkX graph cannot be sent in JSON)
+    result.pop("graph", None)
+
+    return jsonify(
+        {
+            "risk_score": result["risk_score"],
+            "security_score": result["security_score"],
+            "issues": result["issues"],
+            "recommendations": result["recommendations"],
+        }
+    )
 
 
 if __name__ == "__main__":

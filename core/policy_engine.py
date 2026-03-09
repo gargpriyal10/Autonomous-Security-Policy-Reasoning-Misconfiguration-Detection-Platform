@@ -19,6 +19,31 @@ def calculate_security_score(risk_score):
     return score
 
 
+# ---------------- SERVICE RISK ANALYTICS ----------------
+def service_risk_analytics(issues):
+
+    service_data = {}
+
+    for issue in issues:
+
+        service = issue.get("service", "Unknown")
+        severity = issue.get("severity", "Low")
+
+        if service not in service_data:
+            service_data[service] = {"issues": 0, "risk_score": 0}
+
+        service_data[service]["issues"] += 1
+
+        if severity == "High":
+            service_data[service]["risk_score"] += 3
+        elif severity == "Medium":
+            service_data[service]["risk_score"] += 2
+        else:
+            service_data[service]["risk_score"] += 1
+
+    return service_data
+
+
 # ---------------- MAIN POLICY ANALYSIS ENGINE ----------------
 def analyze_policy(rules):
 
@@ -50,6 +75,10 @@ def analyze_policy(rules):
     security_score = calculate_security_score(risk_score)
     # ----------------------------------------
 
+    # -------- SERVICE RISK ANALYTICS --------
+    service_risk = service_risk_analytics(issues)
+    # ----------------------------------------
+
     return {
         "issues": issues,
         "risk_score": risk_score,
@@ -59,4 +88,5 @@ def analyze_policy(rules):
         "recommendations": recs,
         "graph": G,
         "attack_paths": attack_paths,
+        "service_risk": service_risk,
     }

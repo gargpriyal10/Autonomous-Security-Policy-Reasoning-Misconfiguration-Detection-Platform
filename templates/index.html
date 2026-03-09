@@ -112,11 +112,9 @@ border-radius:10px;
 <div class="upload-box">
 
 <input type="file" id="file">
-
 <button onclick="upload()">Analyze Policy</button>
 
 </div>
-
 
 <div class="metrics">
 
@@ -137,16 +135,19 @@ border-radius:10px;
 
 </div>
 
+
+<!-- Security Gauge -->
+
 <div class="section">
-
 <h2>Cloud Security Score</h2>
-
-<div id="securityGauge" style="width:700px; height:400px; margin:auto;"></div>
-
+<div id="securityGauge" style="width:700px;height:400px;margin:auto;"></div>
 </div>
 
 
+<!-- Issues Table -->
+
 <div class="section">
+
 <h2>Detected Security Issues</h2>
 
 <table id="issuesTable">
@@ -166,6 +167,8 @@ border-radius:10px;
 </div>
 
 
+<!-- Recommendations -->
+
 <div class="section">
 
 <h2>Recommendations</h2>
@@ -175,11 +178,24 @@ border-radius:10px;
 </div>
 
 
+<!-- Risk Chart -->
+
 <div class="section">
 
 <h2>Risk Distribution</h2>
 
-<div id="riskChart" style ="width:700px; height:500px; margin:auto;"></div>
+<div id="riskChart" style="width:700px;height:500px;margin:auto;"></div>
+
+</div>
+
+
+<!-- Attack Graph -->
+
+<div class="section">
+
+<h2>Attack Graph</h2>
+
+<div id="attackGraph" style="width:700px;height:400px;margin:auto;"></div>
 
 </div>
 
@@ -201,117 +217,125 @@ return
 let formData = new FormData()
 formData.append("file", file)
 
-let response = await fetch("/analyze", {
+let response = await fetch("/analyze",{
 method:"POST",
 body:formData
 })
 
 let data = await response.json()
 
-
 // Metrics
 
 document.getElementById("riskScore").innerText = data.risk_score
 document.getElementById("securityScore").innerText = data.security_score
 document.getElementById("issueCount").innerText = data.issues.length
-// Security Score Gauge
 
-let gaugeData = [{
-type: "indicator",
-mode: "gauge+number",
-value: data.security_score,
-title: { text: "Security Score" },
-gauge: {
-axis: { range: [0,100] },
-steps: [
-{ range: [0,40], color: "red" },
-{ range: [40,70], color: "orange" },
-{ range: [70,100], color: "green" }
+
+// Gauge
+
+let gaugeData=[{
+type:"indicator",
+mode:"gauge+number",
+value:data.security_score,
+title:{text:"Security Score"},
+gauge:{
+axis:{range:[0,100]},
+steps:[
+{range:[0,40],color:"red"},
+{range:[40,70],color:"orange"},
+{range:[70,100],color:"green"}
 ]
 }
 }]
 
-let gaugeLayout = {
+Plotly.newPlot("securityGauge",gaugeData,{
 paper_bgcolor:"#0f172a",
-font:{color:"white"},
-width:700,
-height:400
-}
-
-Plotly.newPlot('securityGauge', gaugeData, gaugeLayout)
+font:{color:"white"}
+})
 
 
 // Issues Table
 
-let tableBody = document.querySelector("#issuesTable tbody")
-tableBody.innerHTML = ""
+let tableBody=document.querySelector("#issuesTable tbody")
+tableBody.innerHTML=""
 
-data.issues.forEach(issue => {
+data.issues.forEach(issue=>{
 
-let row = `<tr>
+let row=`<tr>
 <td>${issue.risk}</td>
 <td>${issue.problem}</td>
 <td>${issue.reason}</td>
 </tr>`
 
-tableBody.innerHTML += row
+tableBody.innerHTML+=row
 
 })
 
 
-
 // Recommendations
 
-let recList = document.getElementById("recommendations")
-recList.innerHTML = ""
+let recList=document.getElementById("recommendations")
+recList.innerHTML=""
 
-data.recommendations.forEach(r => {
+data.recommendations.forEach(r=>{
 
-let li = document.createElement("li")
-li.textContent = r
+let li=document.createElement("li")
+li.textContent=r
 recList.appendChild(li)
 
 })
 
 
-
 // Risk Chart
 
-let riskCounts = {}
+let riskCounts={}
 
-data.issues.forEach(issue => {
+data.issues.forEach(issue=>{
 
 if(!riskCounts[issue.risk]){
-riskCounts[issue.risk] = 0
+riskCounts[issue.risk]=0
 }
 
 riskCounts[issue.risk]++
 
 })
 
-let labels = Object.keys(riskCounts)
-let values = Object.values(riskCounts)
+let labels=Object.keys(riskCounts)
+let values=Object.values(riskCounts)
 
-let chartData = [{
-labels: labels,
-values: values,
-type: 'pie'
+Plotly.newPlot("riskChart",[{
+labels:labels,
+values:values,
+type:"pie"
+}],{
+paper_bgcolor:"#0f172a",
+font:{color:"white"}
+})
+
+
+// Attack Graph
+
+let graphData=[{
+type:"sankey",
+orientation:"h",
+node:{
+label:["User","IAM Role","S3 Bucket","Sensitive Data"]
+},
+link:{
+source:[0,1,2],
+target:[1,2,3],
+value:[1,1,1]
+}
 }]
 
-let layout = {
+Plotly.newPlot("attackGraph",graphData,{
 paper_bgcolor:"#0f172a",
-plot_bgcolor:"#0f172a",
-font:{color:"white"},
-width:500,
-height:400,
-legend:{font:{color:"white"}}
-}
+font:{color:"white"}
+})
 
-Plotly.newPlot('riskChart', chartData, layout)
 }
 
 </script>
 
 </body>
-
 </html>
