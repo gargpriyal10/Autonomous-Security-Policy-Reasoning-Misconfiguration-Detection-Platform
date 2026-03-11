@@ -419,6 +419,7 @@
                 mode: "markers+text",
                 textposition: "top center",
                 marker: { size: 25, color: "#ef4444" },
+                hoverinfo: "text",
                 type: "scatter"
             }
 
@@ -432,7 +433,27 @@
                     yaxis: { visible: false }
                 },
                 {
-                    displaylogo: false
+                    displaylogo: false,
+                    modeBarButtonsToRemove:[
+                        "zoom2d",
+                        "lasso2d",
+                        "selct2d",
+                        "autoScale2d",
+                        "toggleSpikelines",
+                        "orbitRotation",
+                        "tableRotation",
+
+                    ],
+
+                    modeBarButtonsToAdd:[
+                        "zoomIn2d",
+                        "zoomOut2d",
+                        "pan2d",
+                        "resetScale2d",
+                        "hoverClosestCartesian",
+                        "hoverCompareCartesian"
+                        
+                    ]
                 }
             )
 
