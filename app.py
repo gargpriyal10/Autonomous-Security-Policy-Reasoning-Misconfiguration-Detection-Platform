@@ -76,6 +76,9 @@ def analyze():
             "security_score": result["security_score"],
             "issues": result["issues"],
             "recommendations": result["recommendations"],
+            "attack_paths": result["attack_paths"],  # NEW
+            "service_risk": result["service_risk"],  # NEW
+            "ai_summary": result["ai_summary"],  # optional
         }
     )
 

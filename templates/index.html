@@ -3,339 +3,466 @@
 
 <head>
 
-<title>Cloud Security Policy Analyzer</title>
+    <title>Cloud Security Policy Analyzer</title>
 
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 
-<style>
+    <style>
+        body {
+            background: #0f172a;
+            color: white;
+            font-family: Arial;
+            margin: 0;
+            padding: 40px;
+        }
 
-body{
-background:#0f172a;
-color:white;
-font-family:Arial;
-margin:0;
-padding:40px;
-}
+        .container {
+            max-width: 1300px;
+            margin: auto;
+        }
 
-.container{
-max-width:1100px;
-margin:auto;
-}
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-h1{
-text-align:center;
-margin-bottom:30px;
-}
+        .upload-box {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-.upload-box{
-text-align:center;
-margin-bottom:30px;
-}
+        button {
+            background: #3b82f6;
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
 
-button{
-background:#3b82f6;
-border:none;
-padding:10px 20px;
-color:white;
-border-radius:5px;
-cursor:pointer;
-}
+        button:hover {
+            background: #2563eb;
+        }
 
-button:hover{
-background:#2563eb;
-}
+        .metrics {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+        }
 
-.metrics{
-display:flex;
-gap:20px;
-margin-top:30px;
-}
+        .card {
+            background: #1e293b;
+            flex: 1;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
 
-.card{
-background:#1e293b;
-flex:1;
-padding:20px;
-border-radius:10px;
-text-align:center;
-}
+        .card h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #94a3b8;
+        }
 
-.card h3{
-margin:0;
-font-size:18px;
-color:#94a3b8;
-}
+        .card p {
+            font-size: 26px;
+            margin-top: 10px;
+        }
 
-.card p{
-font-size:26px;
-margin-top:10px;
-}
+        .section {
+            margin-top: 40px;
+        }
 
-.section{
-margin-top:40px;
-}
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e293b;
+            border-radius: 10px;
+            overflow: hidden;
+        }
 
-table{
-width:100%;
-border-collapse:collapse;
-background:#1e293b;
-border-radius:10px;
-overflow:hidden;
-}
+        th {
+            background: #334155;
+            padding: 12px;
+            text-align: left;
+        }
 
-th{
-background:#334155;
-padding:12px;
-text-align:left;
-}
+        td {
+            padding: 12px;
+            border-top: 1px solid #475569;
+        }
 
-td{
-padding:12px;
-border-top:1px solid #475569;
-}
-
-ul{
-background:#1e293b;
-padding:20px;
-border-radius:10px;
-}
-
-</style>
+        ul {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 10px;
+        }
+    </style>
 
 </head>
 
 <body>
 
-<div class="container">
+    <div class="container">
 
-<h1>Cloud Security Policy Analyzer</h1>
+        <h1>Cloud Security Policy Analyzer</h1>
 
-<div class="upload-box">
+        <div class="upload-box">
 
-<input type="file" id="file">
-<button onclick="upload()">Analyze Policy</button>
+            <input type="file" id="file">
+            <button onclick="upload()">Analyze Policy</button>
 
-</div>
+        </div>
 
-<div class="metrics">
+        <div class="metrics">
 
-<div class="card">
-<h3>Risk Score</h3>
-<p id="riskScore">-</p>
-</div>
+            <div class="card">
+                <h3>Risk Score</h3>
+                <p id="riskScore">-</p>
+            </div>
 
-<div class="card">
-<h3>Security Score</h3>
-<p id="securityScore">-</p>
-</div>
+            <div class="card">
+                <h3>Security Score</h3>
+                <p id="securityScore">-</p>
+            </div>
 
-<div class="card">
-<h3>Issues Found</h3>
-<p id="issueCount">-</p>
-</div>
+            <div class="card">
+                <h3>Issues Found</h3>
+                <p id="issueCount">-</p>
+            </div>
 
-</div>
+        </div>
 
 
-<!-- Security Gauge -->
+        <!-- Security Gauge -->
 
-<div class="section">
-<h2>Cloud Security Score</h2>
-<div id="securityGauge" style="width:700px;height:400px;margin:auto;"></div>
-</div>
+        <div class="section">
+            <h2>Cloud Security Score</h2>
+            <div id="securityGauge" style="width:700px;height:400px;margin:auto;"></div>
+        </div>
 
 
-<!-- Issues Table -->
+        <!-- Issues Table -->
 
-<div class="section">
+        <div class="section">
 
-<h2>Detected Security Issues</h2>
+            <h2>Detected Security Issues</h2>
 
-<table id="issuesTable">
+            <table id="issuesTable">
 
-<thead>
-<tr>
-<th>Risk</th>
-<th>Problem</th>
-<th>Reason</th>
-</tr>
-</thead>
+                <thead>
+                    <tr>
+                        <th>Risk</th>
+                        <th>Problem</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
 
-<tbody></tbody>
+                <tbody></tbody>
 
-</table>
+            </table>
 
-</div>
+        </div>
 
 
-<!-- Recommendations -->
+        <!-- Recommendations -->
 
-<div class="section">
+        <div class="section">
 
-<h2>Recommendations</h2>
+            <h2>Recommendations</h2>
 
-<ul id="recommendations"></ul>
+            <ul id="recommendations"></ul>
 
-</div>
+        </div>
 
 
-<!-- Risk Chart -->
+        <!-- Risk Chart -->
 
-<div class="section">
+        <div class="section">
 
-<h2>Risk Distribution</h2>
+            <h2>Risk Distribution</h2>
 
-<div id="riskChart" style="width:700px;height:500px;margin:auto;"></div>
+            <div id="riskChart" style="width:700px;height:500px;margin:auto;"></div>
 
-</div>
+        </div>
 
 
-<!-- Attack Graph -->
+        <!-- Attack Graph -->
 
-<div class="section">
+        <div class="section">
 
-<h2>Attack Graph</h2>
+            <h2>Attack Graph</h2>
 
-<div id="attackGraph" style="width:700px;height:400px;margin:auto;"></div>
+            <div id="attackGraph" style="width:800px;height:400px;margin:auto;"></div>
 
-</div>
+        </div>
 
-</div>
 
+        <!-- Service Risk Chart -->
 
-<script>
+        <div class="section">
 
-async function upload(){
+            <h2>Service Risk Analytics</h2>
 
-let fileInput = document.getElementById("file")
-let file = fileInput.files[0]
+            <div id="serviceRiskChart" style="width:700px;height:400px;margin:auto;"></div>
 
-if(!file){
-alert("Please select a policy file")
-return
-}
+        </div>
 
-let formData = new FormData()
-formData.append("file", file)
+    </div>
 
-let response = await fetch("/analyze",{
-method:"POST",
-body:formData
-})
 
-let data = await response.json()
+    <script>
 
-// Metrics
+        async function upload() {
 
-document.getElementById("riskScore").innerText = data.risk_score
-document.getElementById("securityScore").innerText = data.security_score
-document.getElementById("issueCount").innerText = data.issues.length
+            let fileInput = document.getElementById("file")
+            let file = fileInput.files[0]
 
+            if (!file) {
+                alert("Please select a policy file")
+                return
+            }
 
-// Gauge
+            let formData = new FormData()
+            formData.append("file", file)
 
-let gaugeData=[{
-type:"indicator",
-mode:"gauge+number",
-value:data.security_score,
-title:{text:"Security Score"},
-gauge:{
-axis:{range:[0,100]},
-steps:[
-{range:[0,40],color:"red"},
-{range:[40,70],color:"orange"},
-{range:[70,100],color:"green"}
-]
-}
-}]
+            let response = await fetch("/analyze", {
+                method: "POST",
+                body: formData
+            })
 
-Plotly.newPlot("securityGauge",gaugeData,{
-paper_bgcolor:"#0f172a",
-font:{color:"white"}
-})
+            let data = await response.json()
 
+            console.log(data)
 
-// Issues Table
+            // Metrics
 
-let tableBody=document.querySelector("#issuesTable tbody")
-tableBody.innerHTML=""
+            document.getElementById("riskScore").innerText = data.risk_score
+            document.getElementById("securityScore").innerText = data.security_score
+            document.getElementById("issueCount").innerText = data.issues.length
 
-data.issues.forEach(issue=>{
 
-let row=`<tr>
-<td>${issue.risk}</td>
-<td>${issue.problem}</td>
-<td>${issue.reason}</td>
-</tr>`
+            // Security Gauge
 
-tableBody.innerHTML+=row
+            let gaugeData = [{
+                type: "indicator",
+                mode: "gauge+number",
+                value: data.security_score,
+                title: { text: "Security Score" },
+                gauge: {
+                    axis: { range: [0, 100] },
+                    steps: [
+                        { range: [0, 40], color: "red" },
+                        { range: [40, 70], color: "orange" },
+                        { range: [70, 100], color: "green" }
+                    ]
+                }
+            }]
 
-})
+            Plotly.newPlot(
+                "securityGauge",
+                gaugeData,
+                {
+                    paper_bgcolor: "#0f172a",
+                    font: { color: "white" }
+                },
+                {
+                    displaylogo: false
+                }
+            )
 
 
-// Recommendations
+            // Issues Table
 
-let recList=document.getElementById("recommendations")
-recList.innerHTML=""
+            let tableBody = document.querySelector("#issuesTable tbody")
+            tableBody.innerHTML = ""
 
-data.recommendations.forEach(r=>{
+            data.issues.forEach(issue => {
 
-let li=document.createElement("li")
-li.textContent=r
-recList.appendChild(li)
+                let row = `<tr>
+                    <td>${issue.risk}</td>
+                    <td>${issue.problem}</td>
+                    <td>${issue.reason}</td>
+                </tr>`
 
-})
+                tableBody.innerHTML += row
 
+            })
 
-// Risk Chart
 
-let riskCounts={}
+            // Recommendations
 
-data.issues.forEach(issue=>{
+            let recList = document.getElementById("recommendations")
+            recList.innerHTML = ""
 
-if(!riskCounts[issue.risk]){
-riskCounts[issue.risk]=0
-}
+            data.recommendations.forEach(r => {
 
-riskCounts[issue.risk]++
+                let li = document.createElement("li")
+                li.textContent = r
+                recList.appendChild(li)
 
-})
+            })
 
-let labels=Object.keys(riskCounts)
-let values=Object.values(riskCounts)
 
-Plotly.newPlot("riskChart",[{
-labels:labels,
-values:values,
-type:"pie"
-}],{
-paper_bgcolor:"#0f172a",
-font:{color:"white"}
-})
+            // Risk Distribution Chart
 
+            let riskCounts = {}
 
-// Attack Graph
+            data.issues.forEach(issue => {
 
-let graphData=[{
-type:"sankey",
-orientation:"h",
-node:{
-label:["User","IAM Role","S3 Bucket","Sensitive Data"]
-},
-link:{
-source:[0,1,2],
-target:[1,2,3],
-value:[1,1,1]
-}
-}]
+                if (!riskCounts[issue.risk]) {
+                    riskCounts[issue.risk] = 0
+                }
 
-Plotly.newPlot("attackGraph",graphData,{
-paper_bgcolor:"#0f172a",
-font:{color:"white"}
-})
+                riskCounts[issue.risk]++
 
-}
+            })
 
-</script>
+            let labels = Object.keys(riskCounts)
+            let values = Object.values(riskCounts)
+
+            Plotly.newPlot(
+                "riskChart",
+                [{
+                    labels: labels,
+                    values: values,
+                    type: "pie"
+                }],
+                {
+                    paper_bgcolor: "#0f172a",
+                    font: { color: "white" }
+                },
+                {
+                    displaylogo: false
+                }
+            )
+
+
+            // ---------------- Attack Graph ----------------
+
+            let nodes = []
+            let edges = []
+
+            if (data.attack_paths && data.attack_paths.length > 0) {
+
+                data.attack_paths.forEach(path => {
+
+                    for (let i = 0; i < path.length; i++) {
+
+                        if (!nodes.includes(path[i])) {
+                            nodes.push(path[i])
+                        }
+
+                        if (i < path.length - 1) {
+
+                            edges.push({
+                                from: path[i],
+                                to: path[i + 1]
+                            })
+
+                        }
+
+                    }
+
+                })
+
+            } else {
+
+                nodes = ["Internet User", "IAM Role", "Privilege Escalation", "S3 Bucket", "Sensitive Data"]
+
+                edges = [
+                    { from: "Internet User", to: "IAM Role" },
+                    { from: "IAM Role", to: "Privilege Escalation" },
+                    { from: "Privilege Escalation", to: "S3 Bucket" },
+                    { from: "S3 Bucket", to: "Sensitive Data" }
+                ]
+
+            }
+
+
+            let nodeX = []
+            let nodeY = []
+
+            nodes.forEach((n, i) => {
+
+                nodeX.push(i)
+                nodeY.push(0)
+
+            })
+
+            let edgeX = []
+            let edgeY = []
+
+            edges.forEach(e => {
+
+                let x0 = nodes.indexOf(e.from)
+                let x1 = nodes.indexOf(e.to)
+
+                edgeX.push(x0, x1, null)
+                edgeY.push(0, 0, null)
+
+            })
+
+
+            let edgeTrace = {
+                x: edgeX,
+                y: edgeY,
+                mode: "lines",
+                line: { width: 3, color: "#94a3b8" },
+                type: "scatter"
+            }
+
+            let nodeTrace = {
+                x: nodeX,
+                y: nodeY,
+                text: nodes,
+                mode: "markers+text",
+                textposition: "top center",
+                marker: { size: 25, color: "#ef4444" },
+                type: "scatter"
+            }
+
+            Plotly.newPlot(
+                "attackGraph",
+                [edgeTrace, nodeTrace],
+                {
+                    paper_bgcolor: "#0f172a",
+                    font: { color: "white" },
+                    xaxis: { visible: false },
+                    yaxis: { visible: false }
+                },
+                {
+                    displaylogo: false
+                }
+            )
+
+
+            // ---------------- Service Risk Chart ----------------
+
+            if (data.service_risk) {
+
+                let services = Object.keys(data.service_risk)
+                let scores = services.map(s => data.service_risk[s].risk_score)
+
+                Plotly.newPlot("serviceRiskChart", [{
+                    x: services,
+                    y: scores,
+                    type: "bar"
+                }], {
+                    paper_bgcolor: "#0f172a",
+                    plot_bgcolor: "#0f172a",
+                    font: { color: "white" }
+                },
+            {
+                displaylogo:false
+            })
+
+            }
+
+        }
+
+    </script>
 
 </body>
+
 </html>
