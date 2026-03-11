@@ -73,6 +73,21 @@
             margin-top: 40px;
         }
 
+        /* GRID DASHBOARD */
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .chart-box {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -134,11 +149,41 @@
         </div>
 
 
-        <!-- Security Gauge -->
+        <!-- GRID CHARTS -->
 
-        <div class="section">
-            <h2>Cloud Security Score</h2>
-            <div id="securityGauge" style="width:700px;height:400px;margin:auto;"></div>
+        <div class="dashboard-grid">
+
+            <div class="chart-box">
+
+                <h2>Cloud Security Score</h2>
+                <div id="securityGauge" style="height:350px;"></div>
+
+            </div>
+
+
+            <div class="chart-box">
+
+                <h2>Risk Distribution</h2>
+                <div id="riskChart" style="height:350px;"></div>
+
+            </div>
+
+
+            <div class="chart-box">
+
+                <h2>Attack Graph</h2>
+                <div id="attackGraph" style="height:350px;"></div>
+
+            </div>
+
+
+            <div class="chart-box">
+
+                <h2>Service Risk Analytics</h2>
+                <div id="serviceRiskChart" style="height:350px;"></div>
+
+            </div>
+
         </div>
 
 
@@ -175,39 +220,6 @@
 
         </div>
 
-
-        <!-- Risk Chart -->
-
-        <div class="section">
-
-            <h2>Risk Distribution</h2>
-
-            <div id="riskChart" style="width:700px;height:500px;margin:auto;"></div>
-
-        </div>
-
-
-        <!-- Attack Graph -->
-
-        <div class="section">
-
-            <h2>Attack Graph</h2>
-
-            <div id="attackGraph" style="width:800px;height:400px;margin:auto;"></div>
-
-        </div>
-
-
-        <!-- Service Risk Chart -->
-
-        <div class="section">
-
-            <h2>Service Risk Analytics</h2>
-
-            <div id="serviceRiskChart" style="width:700px;height:400px;margin:auto;"></div>
-
-        </div>
-
     </div>
 
 
@@ -233,16 +245,12 @@
 
             let data = await response.json()
 
-            console.log(data)
-
-            // Metrics
-
             document.getElementById("riskScore").innerText = data.risk_score
             document.getElementById("securityScore").innerText = data.security_score
             document.getElementById("issueCount").innerText = data.issues.length
 
 
-            // Security Gauge
+            /* SECURITY GAUGE */
 
             let gaugeData = [{
                 type: "indicator",
@@ -263,16 +271,14 @@
                 "securityGauge",
                 gaugeData,
                 {
-                    paper_bgcolor: "#0f172a",
+                    paper_bgcolor: "#1e293b",
                     font: { color: "white" }
                 },
-                {
-                    displaylogo: false
-                }
+                { displaylogo: false }
             )
 
 
-            // Issues Table
+            /* ISSUES TABLE */
 
             let tableBody = document.querySelector("#issuesTable tbody")
             tableBody.innerHTML = ""
@@ -290,7 +296,7 @@
             })
 
 
-            // Recommendations
+            /* RECOMMENDATIONS */
 
             let recList = document.getElementById("recommendations")
             recList.innerHTML = ""
@@ -304,18 +310,15 @@
             })
 
 
-            // Risk Distribution Chart
+            /* RISK PIE CHART */
 
             let riskCounts = {}
 
             data.issues.forEach(issue => {
-
                 if (!riskCounts[issue.risk]) {
                     riskCounts[issue.risk] = 0
                 }
-
                 riskCounts[issue.risk]++
-
             })
 
             let labels = Object.keys(riskCounts)
@@ -323,22 +326,16 @@
 
             Plotly.newPlot(
                 "riskChart",
-                [{
-                    labels: labels,
-                    values: values,
-                    type: "pie"
-                }],
+                [{ labels: labels, values: values, type: "pie" }],
                 {
-                    paper_bgcolor: "#0f172a",
+                    paper_bgcolor: "#1e293b",
                     font: { color: "white" }
                 },
-                {
-                    displaylogo: false
-                }
+                { displaylogo: false }
             )
 
 
-            // ---------------- Attack Graph ----------------
+            /* ATTACK GRAPH - NETWORK STYLE */
 
             let nodes = []
             let edges = []
@@ -354,12 +351,10 @@
                         }
 
                         if (i < path.length - 1) {
-
                             edges.push({
                                 from: path[i],
                                 to: path[i + 1]
                             })
-
                         }
 
                     }
@@ -368,7 +363,13 @@
 
             } else {
 
-                nodes = ["Internet User", "IAM Role", "Privilege Escalation", "S3 Bucket", "Sensitive Data"]
+                nodes = [
+                    "Internet User",
+                    "IAM Role",
+                    "Privilege Escalation",
+                    "S3 Bucket",
+                    "Sensitive Data"
+                ]
 
                 edges = [
                     { from: "Internet User", to: "IAM Role" },
@@ -380,26 +381,35 @@
             }
 
 
+            /* NETWORK LAYOUT POSITIONS */
+
             let nodeX = []
             let nodeY = []
 
             nodes.forEach((n, i) => {
 
-                nodeX.push(i)
-                nodeY.push(0)
+                // spread nodes in network pattern
+                nodeX.push(Math.cos(i) * 3)
+                nodeY.push(Math.sin(i) * 3)
 
             })
+
+
+            /* BUILD EDGE LINES */
 
             let edgeX = []
             let edgeY = []
 
             edges.forEach(e => {
 
-                let x0 = nodes.indexOf(e.from)
-                let x1 = nodes.indexOf(e.to)
+                let x0 = nodeX[nodes.indexOf(e.from)]
+                let y0 = nodeY[nodes.indexOf(e.from)]
+
+                let x1 = nodeX[nodes.indexOf(e.to)]
+                let y1 = nodeY[nodes.indexOf(e.to)]
 
                 edgeX.push(x0, x1, null)
-                edgeY.push(0, 0, null)
+                edgeY.push(y0, y1, null)
 
             })
 
@@ -408,9 +418,35 @@
                 x: edgeX,
                 y: edgeY,
                 mode: "lines",
-                line: { width: 3, color: "#94a3b8" },
+                line: {
+                    width: 2,
+                    color: "#94a3b8"
+                },
+                hoverinfo: "none",
                 type: "scatter"
             }
+
+
+            let nodeColors = nodes.map(node => {
+
+                if (node.includes("User"))
+                    return "#3b82f6"   // blue
+
+                if (node.includes("IAM"))
+                    return "#f97316"   // orange
+
+                if (node.includes("Privilege"))
+                    return "#ef4444"   // red
+
+                if (node.includes("S3"))
+                    return "#eab308"   // yellow
+
+                if (node.includes("Sensitive"))
+                    return "#a855f7"   // purple
+
+                return "#94a3b8"       // default gray
+            })
+
 
             let nodeTrace = {
                 x: nodeX,
@@ -418,65 +454,90 @@
                 text: nodes,
                 mode: "markers+text",
                 textposition: "top center",
-                marker: { size: 25, color: "#ef4444" },
+                marker: {
+                    size: 28,
+                    color: nodeColors
+                },
                 hoverinfo: "text",
                 type: "scatter"
             }
+
 
             Plotly.newPlot(
                 "attackGraph",
                 [edgeTrace, nodeTrace],
                 {
-                    paper_bgcolor: "#0f172a",
+                    paper_bgcolor: "#1e293b",
+                    plot_bgcolor: "#1e293b",
                     font: { color: "white" },
                     xaxis: { visible: false },
-                    yaxis: { visible: false }
+                    yaxis: { visible: false },
+                    showlegend: false
                 },
                 {
                     displaylogo: false,
-                    modeBarButtonsToRemove:[
-                        "zoom2d",
+                    modeBarButtonsToRemove: [
                         "lasso2d",
-                        "selct2d",
+                        "select2d",
+                        "zoom2d",
                         "autoScale2d",
                         "toggleSpikelines",
                         "orbitRotation",
-                        "tableRotation",
-
+                        "tableRotation"
                     ],
-
-                    modeBarButtonsToAdd:[
+                    modeBarButtonsToAdd: [
                         "zoomIn2d",
                         "zoomOut2d",
-                        "pan2d",
-                        "resetScale2d",
                         "hoverClosestCartesian",
-                        "hoverCompareCartesian"
-                        
+                        "hoverCompareCartesian",
+                        "pan2d",
+                        "resetScale2d"
                     ]
                 }
             )
 
 
-            // ---------------- Service Risk Chart ----------------
+            /* SERVICE RISK */
 
             if (data.service_risk) {
 
                 let services = Object.keys(data.service_risk)
                 let scores = services.map(s => data.service_risk[s].risk_score)
 
-                Plotly.newPlot("serviceRiskChart", [{
-                    x: services,
-                    y: scores,
-                    type: "bar"
-                }], {
-                    paper_bgcolor: "#0f172a",
-                    plot_bgcolor: "#0f172a",
-                    font: { color: "white" }
-                },
-            {
-                displaylogo:false
-            })
+                Plotly.newPlot(
+                    "serviceRiskChart",
+                    [{
+                        x: services, y: scores, type: "scatter",
+                        mode: "lines+markers",
+                        line: { color: "#3b82f6", width: 3 },
+                        marker: { size: 10, color: "#3b82f6" }
+                    }],
+                    {
+                        paper_bgcolor: "#1e293b",
+                        plot_bgcolor: "#1e293b",
+                        font: { color: "white" }
+                    },
+                    {
+                        displaylogo: false,
+                        modeBarButtonsToRemove: [
+                            "lasso2d",
+                            "zoom2d",
+                            "select2d",
+                            "autoScale2d",
+                            "toggleSpikelines",
+                            "orbitRotation",
+                            "tableRotation"
+                        ],
+                        modeBarButtonsToAdd: [
+                            "zoomIn2d",
+                            "zoomOut2d",
+                            "hoverClosestCartesian",
+                            "hoverCompareCartesian",
+                            "pan2d",
+                            "resetScale2d"
+                        ]
+                    }
+                )
 
             }
 
