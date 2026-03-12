@@ -540,6 +540,43 @@
                 }
             )
 
+            /* ATTACK PATH ANIMATION */
+
+            let step = 0
+
+            function animateAttack() {
+
+                if (step >= edges.length) return
+
+                let e = edges[step]
+
+                let x0 = nodeX[nodes.indexOf(e.from)]
+                let y0 = nodeY[nodes.indexOf(e.from)]
+
+                let x1 = nodeX[nodes.indexOf(e.to)]
+                let y1 = nodeY[nodes.indexOf(e.to)]
+
+                let attackTrace = {
+                    x: [x0, x1],
+                    y: [y0, y1],
+                    mode: "lines",
+                    line: {
+                        width: 6,
+                        color: "#ef4444"
+                    },
+                    type: "scatter"
+                }
+
+                Plotly.addTraces("attackGraph", attackTrace)
+
+                step++
+
+                setTimeout(animateAttack, 800)
+
+            }
+
+            setTimeout(animateAttack, 1000)
+
 
             /* SERVICE RISK */
 
@@ -585,19 +622,24 @@
 
             }
 
-            /* TOP VULNERABLE SERVICES */
+            /* TOP VULNERABLE SERVICES - SORTED */
 
             if (data.service_risk) {
 
                 let tableBody = document.querySelector("#serviceTable tbody")
                 tableBody.innerHTML = ""
 
-                Object.entries(data.service_risk).forEach(([service, info]) => {
+                // convert object → array and sort by risk score
+                let services = Object.entries(data.service_risk)
+
+                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
+
+                services.forEach(([service, info]) => {
 
                     let row = `<tr>
-                        <td>${service}</td>
-                        <td>${info.count}</td>
-                        <td>${info.risk_score}</td>
+                    <td>${service || "Other"}</td>
+                    <td>${info.count}</td>
+                    <td>${info.risk_score}</td>
                     </tr>`
 
                     tableBody.innerHTML += row
