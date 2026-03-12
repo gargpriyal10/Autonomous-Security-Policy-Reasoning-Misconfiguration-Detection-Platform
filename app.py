@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 import json
 import yaml
 import csv
@@ -6,11 +6,15 @@ import csv
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
 
+# NEW IMPORT
+from utils.report_generator import generate_report
+
 app = Flask(__name__)
 
 @app.route("/")
 def home():
     return render_template("index.html")
+
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -74,11 +78,32 @@ def analyze():
             "security_score": result["security_score"],
             "issues": result["issues"],
             "recommendations": result["recommendations"],
-            "attack_paths": result["attack_paths"],  
-            "service_risk": result["service_risk"],  
+            "attack_paths": result["attack_paths"],
+            "service_risk": result["service_risk"],
             "ai_summary": result["ai_summary"],
-            "ai_text": result["ai_text"], 
+            "ai_text": result["ai_text"],
         }
+    )
+
+
+# -------------------------------
+# NEW ROUTE FOR PDF DOWNLOAD
+# -------------------------------
+
+@app.route("/download_report", methods=["POST"])
+def download_report():
+
+    data = request.get_json()
+
+    filepath = "cloud_security_report.pdf"
+
+    generate_report(data, filepath)
+
+    return send_file(
+        filepath,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="cloud_security_report.pdf"
     )
 
 

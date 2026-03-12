@@ -125,7 +125,15 @@
         <div class="upload-box">
 
             <input type="file" id="file">
-            <button onclick="upload()">Analyze Policy</button>
+            <button id="analyzeBtn" onclick="upload()">Analyze Policy</button>
+
+            <button onclick="downloadJSON()">Export JSON</button>
+
+            <button onclick="downloadReport()">Download PDF Report</button>
+
+            <div id="loading" style="display:none; margin-top:15px;">
+                <p>Analyzing Cloud Policy...</p>
+            </div>
 
         </div>
 
@@ -255,7 +263,12 @@
 
     <script>
 
+        let analysisData = null
+
         async function upload() {
+
+            document.getElementById("loading").style.display = "block"
+            document.getElementById("analyzeBtn").disabled = true
 
             let fileInput = document.getElementById("file")
             let file = fileInput.files[0]
@@ -274,6 +287,11 @@
             })
 
             let data = await response.json()
+
+            analysisData = data
+
+            document.getElementById("loading").style.display = "none"
+            document.getElementById("analyzeBtn").disabled = false
 
             document.getElementById("riskScore").innerText = data.risk_score
             document.getElementById("securityScore").innerText = data.security_score
@@ -648,6 +666,60 @@
 
             }
 
+        }
+
+        function downloadJSON() {
+
+            if (!analysisData) {
+                alert("Please analyze a policy first")
+                return
+            }
+
+            const dataStr = JSON.stringify(analysisData, null, 2)
+
+            const blob = new Blob([dataStr], { type: "application/json" })
+
+            const url = URL.createObjectURL(blob)
+
+            const a = document.createElement("a")
+            a.href = url
+            a.download = "security_analysis.json"
+
+            document.body.appendChild(a)
+            a.click()
+
+            document.body.removeChild(a)
+
+            URL.revokeObjectURL(url)
+        }
+
+        function downloadReport() {
+
+            if (!analysisData) {
+                alert("Analyze a policy first")
+                return
+            }
+
+            fetch("/download_report", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(analysisData)
+            })
+                .then(res => res.blob())
+                .then(blob => {
+
+                    const url = window.URL.createObjectURL(blob)
+
+                    const a = document.createElement("a")
+                    a.href = url
+                    a.download = "cloud_security_report.pdf"
+
+                    document.body.appendChild(a)
+                    a.click()
+                    a.remove()
+                })
         }
 
     </script>
