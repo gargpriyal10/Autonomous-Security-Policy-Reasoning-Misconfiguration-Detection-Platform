@@ -45,6 +45,23 @@ def service_risk_analytics(issues):
 
 
 # ---------------- MAIN POLICY ANALYSIS ENGINE ----------------
+def calculate_service_risk(issues):
+
+    service_risk = {}
+
+    for issue in issues:
+
+        service = issue.get("service", "Other")
+
+        if service not in service_risk:
+            service_risk[service] = {"count": 0, "risk_score": 0}
+
+        service_risk[service]["count"] += 1
+        service_risk[service]["risk_score"] += 10
+
+    return service_risk
+
+
 def analyze_policy(rules):
 
     # Detect misconfigurations
@@ -64,6 +81,7 @@ def analyze_policy(rules):
 
     # Generate recommendations
     recs = generate_recommendations(issues)
+    service_risk = calculate_service_risk(issues)
 
     # Build policy graph
     G = build_graph(rules)
@@ -86,7 +104,21 @@ def analyze_policy(rules):
         "ai_text": ai_text,
         "ai_summary": ai_summary,
         "recommendations": recs,
+        "service_risk": service_risk,
         "graph": G,
         "attack_paths": attack_paths,
-        "service_risk": service_risk,
     }
+
+
+def score_attack_paths(paths):
+
+    scored_paths = []
+
+    for path in paths:
+        score = len(path) * 10  # simple risk scoring
+
+        scored_paths.append({"path": path, "risk": score})
+
+    scored_paths = sorted(scored_paths, key=lambda x: x["risk"], reverse=True)
+
+    return scored_paths
