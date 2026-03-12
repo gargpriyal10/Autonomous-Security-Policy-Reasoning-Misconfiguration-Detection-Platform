@@ -242,6 +242,16 @@
 
     </div>
 
+    <div class="section">
+
+        <h2>AI Security Analysis</h2>
+
+        <div id="aiSummary" class="card" style="margin-bottom:15px;"></div>
+
+        <div id="aiExplanation" class="card"></div>
+
+    </div>
+
 
     <script>
 
@@ -328,6 +338,20 @@
                 recList.appendChild(li)
 
             })
+
+            /* AI SECURITY ANALYSIS */
+
+            if (data.ai_summary) {
+
+                document.getElementById("aiSummary").innerText = data.ai_summary
+
+            }
+
+            if (data.ai_text) {
+
+                document.getElementById("aiExplanation").innerText = data.ai_text
+
+            }
 
 
             /* RISK PIE CHART */
