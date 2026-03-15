@@ -37,6 +37,12 @@
     <div class="card">
 
         <h3 class="text-center mb-4">Security Platform Login</h3>
+        
+        {% if error %}
+        <script>
+        alert("{{ error }}");
+        </script>
+        {% endif %}
 
         <form method="POST">
 

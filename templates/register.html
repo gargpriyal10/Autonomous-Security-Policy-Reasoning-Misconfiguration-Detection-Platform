@@ -37,7 +37,12 @@
     <div class="card">
 
         <h3 class="text-center mb-4">Create Account</h3>
-
+        {% if error %}
+        <script>
+        alert("{{ error }}");
+        </script>
+        {% endif %}
+        
         <form method="POST">
 
             <input class="form-control" name="username" placeholder="Username">

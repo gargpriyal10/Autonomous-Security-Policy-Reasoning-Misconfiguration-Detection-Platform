@@ -18,22 +18,27 @@ def register():
 
         username = request.form["username"]
         password = request.form["password"]
-
+        
+        # Password validation 
+        if  len(password) < 4 or len(password) > 8:
+            return render_template("register.html", error="Password must be between 4 and 8 characters")
+        
         hashed_password = generate_password_hash(password)
 
         conn = get_db()
         cursor = conn.cursor()
 
-        cursor.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            (username, hashed_password),
-        )
-
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, hashed_password)
+            )
+            conn.commit()
+        except:
+            return render_template("register.html", error="Username already exists")
         conn.close()
 
         return redirect(url_for("auth.login"))
-
     return render_template("register.html")
 
 
@@ -44,6 +49,10 @@ def login():
 
         username = request.form["username"]
         password = request.form["password"]
+
+        #pqassword length validation
+        if len(password) < 4 or len(password) > 8:
+            return render_template("login.html", error="Password must be between 4 and 8 characters")
 
         conn = get_db()
         cursor = conn.cursor()
@@ -61,8 +70,8 @@ def login():
 
             return redirect("/")
 
+        return render_template("login.html", error="Invalid username or password")
     return render_template("login.html")
-
 
 @auth.route("/logout")
 def logout():
