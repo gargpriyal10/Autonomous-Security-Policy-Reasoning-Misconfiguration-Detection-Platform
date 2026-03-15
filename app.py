@@ -1,5 +1,9 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 import json
+import plotly
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.offline import plot
 import yaml
 import csv
 from parser.policy_parser import normalize_policy
@@ -88,9 +92,9 @@ def analyze():
     risk_score = result["risk_score"]
     issues_count = len(result["issues"])
 
-    if risk_score < 30:
+    if risk_score <= 30:
         risk_level = "LOW"
-    elif risk_score < 70:
+    elif risk_score <= 70:
         risk_level = "MEDIUM"
     else:
         risk_level = "HIGH"
@@ -109,10 +113,6 @@ def analyze():
         }
     )
 
-
-# -------------------------------
-# NEW ROUTE FOR PDF DOWNLOAD
-# -------------------------------
 
 @app.route("/download_report", methods=["POST"])
 def download_report():
@@ -139,8 +139,27 @@ def history():
     username = session["username"]
 
     scans = get_scan_history(username)
+    scans = list(reversed(scans))
 
-    return render_template("history.html", scans=scans)
+    risk_scores = [scan[0] for scan in scans]
+    timestamps = [scan[3] for scan in scans]    
+
+    fig = px.line(
+        x = timestamps,
+        y = risk_scores,
+        markers = True,
+        title = "Risk Score Trend",
+    )
+    
+    fig.update_layout(
+        xaxis_title="Time",
+        yaxis_title="Risk Score",
+        template="plotly_dark",
+        modebar_remove=["toImage"]
+    )
+    chart = plot(fig, output_type="div", include_plotlyjs=False,config={"displaylogo": False})
+
+    return render_template("history.html", scans=scans, chart = chart)
 
 if __name__ == "__main__":
     app.run(debug=True)
