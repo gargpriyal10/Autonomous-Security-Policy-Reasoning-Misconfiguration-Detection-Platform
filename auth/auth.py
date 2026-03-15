@@ -21,7 +21,7 @@ def register():
         
         # Password validation 
         if  len(password) < 4 or len(password) > 8:
-            return render_template("register.html", error="Password must be between 4 and 8 characters")
+            return render_template("register.html", error="Password must be 4 to 8 characters")
         
         hashed_password = generate_password_hash(password)
 
