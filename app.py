@@ -1,5 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
-from flask import session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 import json
 import yaml
 import csv
@@ -25,6 +24,9 @@ def home():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
+
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized access"}), 401
 
     uploaded_file = request.files.get("file")
 
