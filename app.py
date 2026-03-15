@@ -1,18 +1,25 @@
 from flask import Flask, render_template, request, jsonify, send_file
+from flask import session, redirect, url_for
 import json
 import yaml
 import csv
-
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
-
-# NEW IMPORT
+from database.db import create_users_table
+from auth.auth import auth
 from utils.report_generator import generate_report
 
+
 app = Flask(__name__)
+app.register_blueprint(auth)
+create_users_table()
+app.secret_key = "cloud_security_policy_platform_2026"
 
 @app.route("/")
 def home():
+
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
     return render_template("index.html")
 
 
