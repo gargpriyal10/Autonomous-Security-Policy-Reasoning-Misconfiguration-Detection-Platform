@@ -72,6 +72,19 @@
 
 <div style="margin-bottom:20px;">
 
+</div>
+
+<div style="display:flex; gap:20px; margin-bottom:20px;">
+
+<input 
+    type="text" 
+    id="searchInput" 
+    onkeyup="searchTable()" 
+    placeholder="Search scan history..."
+    class="form-control"
+    style="max-width:300px;"
+>
+
 <select id="riskFilter" class="form-select" style="width:200px;" onchange="filterTable()">
 <option value="ALL">All Risks</option>
 <option value="HIGH">High Risk</option>
@@ -107,8 +120,8 @@
     </tbody>
 
 </table>
-<script>
 
+<script>
 function filterTable() {
 
     var filter = document.getElementById("riskFilter").value;
@@ -123,6 +136,29 @@ function filterTable() {
             rows[i].style.display = "";
         } else {
             rows[i].style.display = "none";
+        }
+
+    }
+}
+</script>
+
+<script>
+
+function searchTable() {
+
+    var input = document.getElementById("searchInput");
+    var filter = input.value.toUpperCase();
+    var table = document.getElementById("scanTable");
+    var tr = table.getElementsByTagName("tr");
+
+    for (var i = 1; i < tr.length; i++) {
+
+        var rowText = tr[i].innerText.toUpperCase();
+
+        if (rowText.indexOf(filter) > -1) {
+            tr[i].style.display = "";
+        } else {
+            tr[i].style.display = "none";
         }
 
     }
