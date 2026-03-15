@@ -6,6 +6,7 @@ import plotly.express as px
 from plotly.offline import plot
 import yaml
 import csv
+from flask import Response
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
 from database.db import save_scan , get_scan_history
@@ -160,6 +161,32 @@ def history():
     chart = plot(fig, output_type="div", include_plotlyjs=False,config={"displaylogo": False})
 
     return render_template("history.html", scans=scans, chart = chart)
+
+@app.route("/export_csv")
+def export_csv():
+
+    if "username" not in session:
+        return redirect(url_for("auth.login"))
+
+    username = session["username"]
+
+    scans = get_scan_history(username)
+
+    def generate():
+        data = [["Risk Score", "Risk Level", "Issues", "Time"]]
+
+        for scan in scans:
+            data.append([scan[0], scan[1], scan[2], scan[3]])
+
+        for row in data:
+            yield ",".join(map(str, row)) + "\n"
+
+    return Response(
+        generate(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=scan_history.csv"}
+    )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
