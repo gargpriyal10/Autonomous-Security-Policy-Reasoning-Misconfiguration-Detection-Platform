@@ -140,6 +140,12 @@ def history():
     username = session["username"]
 
     scans = get_scan_history(username)
+    total_scans = len(scans)
+
+    high_risk = len([s for s in scans if s[1] == "HIGH"])
+    medium_risk = len([s for s in scans if s[1] == "MEDIUM"])
+    low_risk = len([s for s in scans if s[1] == "LOW"])
+    
     scans = list(reversed(scans))
 
     risk_scores = [scan[0] for scan in scans]
@@ -160,8 +166,15 @@ def history():
     )
     chart = plot(fig, output_type="div", include_plotlyjs=False,config={"displaylogo": False})
 
-    return render_template("history.html", scans=scans, chart = chart)
-
+    return render_template(
+        "history.html",
+        scans=scans,
+        chart=chart,
+        total_scans=total_scans,
+        high_risk=high_risk,
+        medium_risk=medium_risk,
+        low_risk=low_risk
+    )
 @app.route("/export_csv")
 def export_csv():
 
