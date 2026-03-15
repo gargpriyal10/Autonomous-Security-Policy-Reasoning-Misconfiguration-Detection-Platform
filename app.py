@@ -4,15 +4,19 @@ import yaml
 import csv
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
+from database.db import save_scan , get_scan_history
 from database.db import create_users_table
+from database.db import init_db
 from auth.auth import auth
 from utils.report_generator import generate_report
 
 
 app = Flask(__name__)
+app.secret_key = "cloud_security_policy_platform_2026"
+
 app.register_blueprint(auth)
 create_users_table()
-app.secret_key = "cloud_security_policy_platform_2026"
+init_db()
 
 @app.route("/")
 def home():
@@ -75,11 +79,22 @@ def analyze():
     if not rules:
         return jsonify({"error": "Invalid policy file"})
 
-    # Run policy analysis
     result = analyze_policy(rules)
 
-    # Remove graph (NetworkX graph cannot be sent in JSON)
     result.pop("graph", None)
+
+    username = session.get("username")
+
+    risk_score = result["risk_score"]
+    issues_count = len(result["issues"])
+
+    if risk_score < 30:
+        risk_level = "LOW"
+    elif risk_score < 70:
+        risk_level = "MEDIUM"
+    else:
+        risk_level = "HIGH"
+    save_scan(username, risk_score, risk_level, issues_count)
 
     return jsonify(
         {
@@ -115,6 +130,17 @@ def download_report():
         download_name="cloud_security_report.pdf"
     )
 
+@app.route("/history")
+def history():
+
+    if "username" not in session:
+        return redirect(url_for("auth.login"))
+
+    username = session["username"]
+
+    scans = get_scan_history(username)
+
+    return render_template("history.html", scans=scans)
 
 if __name__ == "__main__":
     app.run(debug=True)
