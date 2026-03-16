@@ -2,9 +2,9 @@ from flask import Flask, render_template, request, jsonify, send_file, session, 
 import json
 import yaml
 import csv
-import plotly.express as px
+import pandas as pd
 from plotly.offline import plot
-
+import plotly.graph_objects as go
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
 from database.db import save_scan, get_scan_history
@@ -12,12 +12,11 @@ from database.db import create_users_table, init_db
 from auth.auth import auth
 from utils.report_generator import generate_report
 
+
 app = Flask(__name__)
 app.secret_key = "cloud_security_policy_platform_2026"
 
-
 app.register_blueprint(auth)
-
 
 create_users_table()
 init_db()
@@ -30,6 +29,7 @@ def home():
 
     return render_template("index.html")
 
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     if "user_id" not in session:
@@ -41,7 +41,6 @@ def analyze():
         return jsonify({"error": "No file uploaded"})
 
     filename = uploaded_file.filename.lower()
-
     rules = []
 
     # JSON policy
@@ -64,28 +63,28 @@ def analyze():
         reader = csv.DictReader(decoded)
 
         for row in reader:
-            rules.append(
-                {
-                    "Effect": row.get("Effect", "Allow"),
-                    "Action": row.get("Action", "*"),
-                    "Resource": row.get("Resource", "*"),
-                }
-            )
+            rules.append({
+                "Effect": row.get("Effect", "Allow"),
+                "Action": row.get("Action", "*"),
+                "Resource": row.get("Resource", "*")
+            })
 
     # TXT policy
     elif filename.endswith(".txt"):
         text = uploaded_file.read().decode("utf-8")
 
         if "*" in text:
-            rules.append({"Effect": "Allow", "Action": "*", "Resource": "*"})
+            rules.append({
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*"
+            })
 
     if not rules:
         return jsonify({"error": "Invalid policy file"})
 
-    # Analyze policy
     result = analyze_policy(rules)
 
-    # Remove graph from response (handled separately)
     result.pop("graph", None)
 
     username = session.get("username")
@@ -93,7 +92,6 @@ def analyze():
     risk_score = result["risk_score"]
     issues_count = len(result["issues"])
 
-    # Determine risk level
     if risk_score <= 30:
         risk_level = "LOW"
     elif risk_score <= 70:
@@ -101,23 +99,19 @@ def analyze():
     else:
         risk_level = "HIGH"
 
-    # Save scan in database
     if username:
         save_scan(username, risk_score, risk_level, issues_count)
 
-    return jsonify(
-        {
-            "risk_score": result["risk_score"],
-            "security_score": result["security_score"],
-            "issues": result["issues"],
-            "recommendations": result["recommendations"],
-            "attack_paths": result["attack_paths"],
-            "service_risk": result["service_risk"],
-            "ai_summary": result["ai_summary"],
-            "ai_text": result["ai_text"],
-        }
-    )
-
+    return jsonify({
+        "risk_score": result["risk_score"],
+        "security_score": result["security_score"],
+        "issues": result["issues"],
+        "recommendations": result["recommendations"],
+        "attack_paths": result["attack_paths"],
+        "service_risk": result["service_risk"],
+        "ai_summary": result["ai_summary"],
+        "ai_text": result["ai_text"]
+    })
 
 
 @app.route("/download_report", methods=["POST"])
@@ -135,14 +129,31 @@ def download_report():
         download_name="cloud_security_report.pdf"
     )
 
+
 @app.route("/history")
 def history():
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
-    user_id = session.get("user_id")
+    username = session.get("username")
 
-    scans = get_scan_history(user_id)
+    scans = get_scan_history(username)
+
+    vulnerability_counts = {}
+
+    for scan in scans:
+        issues_count = scan[2]
+
+        if issues_count > 0:
+            vulnerability_counts["Policy Misconfiguration"] = (
+                vulnerability_counts.get("Policy Misconfiguration", 0) + issues_count
+            )
+
+    top_vulnerabilities = sorted(
+        vulnerability_counts.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
     total_scans = len(scans)
     high_risk = len([s for s in scans if s[1] == "HIGH"])
@@ -154,25 +165,39 @@ def history():
     risk_scores = [scan[0] for scan in scans]
     timestamps = [scan[3] for scan in scans]
 
-    # Create risk trend chart
-    fig = px.line(
-        x=timestamps,
-        y=risk_scores,
-        markers=True,
-        title="Risk Score Trend"
-    )
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+    x=timestamps,
+    y=risk_scores,
+    mode='lines+markers',
+    name='Risk Score'
+    ))
+
+    # fig = px.line(
+    #     df,
+    #     x=timestamps,
+    #     y=risk_scores,
+    #     markers=True,
+    #     title="Risk Score Trend"
+    # )
 
     fig.update_layout(
+        title = "Risk Score Trend",
+        height=420,
         xaxis_title="Time",
         yaxis_title="Risk Score",
-        template="plotly_dark"
+        template="plotly_dark",
+        margin = dict(l=20,r=20,t=40,b=20),
+        xaxis_tickangle=-45
     )
 
     chart = plot(
         fig,
         output_type="div",
         include_plotlyjs=False,
-        config={"displaylogo": False}
+        config={"displaylogo": False,
+                "displayModeBar": False}
     )
 
     return render_template(
@@ -182,7 +207,8 @@ def history():
         total_scans=total_scans,
         high_risk=high_risk,
         medium_risk=medium_risk,
-        low_risk=low_risk
+        low_risk=low_risk,
+        top_vulnerabilities=top_vulnerabilities
     )
 
 
@@ -191,24 +217,32 @@ def export_csv():
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
-user_id = session.get("user_id")
+    username = session.get("username")
 
-scans = get_scan_history(user_id)
+    scans = get_scan_history(username)
 
-def generate():
-    data = [["Risk Score", "Risk Level", "Issues", "Time"]]
+    def generate():
+        data = [["Risk Score", "Risk Level", "Issues", "Time"]]
 
-    for scan in scans:
-        data.append([scan[0], scan[1], scan[2], scan[3]])
+        for scan in scans:
+            data.append([
+                scan[0],
+                scan[1],
+                scan[2],
+                scan[3]
+            ])
 
-    for row in data:
-        yield ",".join(map(str, row)) + "\n"
+        for row in data:
+            yield ",".join(map(str, row)) + "\n"
 
     return Response(
         generate(),
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment;filename=scan_history.csv"}
+        headers={
+            "Content-Disposition": "attachment;filename=scan_history.csv"
+        }
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
