@@ -1,10 +1,21 @@
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, Response
+from flask import (
+    Flask,
+    render_template,
+    request,
+    jsonify,
+    send_file,
+    session,
+    redirect,
+    url_for,
+    Response,
+)
 import json
 import yaml
 import csv
 import pandas as pd
 from plotly.offline import plot
 import plotly.graph_objects as go
+
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
 from database.db import save_scan, get_scan_history
@@ -32,57 +43,65 @@ def home():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
+
     if "user_id" not in session:
         return jsonify({"error": "Unauthorized access"}), 401
 
-    uploaded_file = request.files.get("file")
+    uploaded_files = request.files.getlist("files")
 
-    if not uploaded_file:
+    if not uploaded_files:
         return jsonify({"error": "No file uploaded"})
 
-    filename = uploaded_file.filename.lower()
     rules = []
 
-    # JSON policy
-    if filename.endswith(".json"):
-        data = json.load(uploaded_file)
+    # -------- PROCESS MULTIPLE FILES --------
+    for uploaded_file in uploaded_files:
 
-        if "Statement" in data:
-            rules.extend(normalize_policy(data))
+        filename = uploaded_file.filename.lower()
 
-    # YAML policy
-    elif filename.endswith(".yaml") or filename.endswith(".yml"):
-        data = yaml.safe_load(uploaded_file)
+        # JSON policy
+        if filename.endswith(".json"):
 
-        if data and "Statement" in data:
-            rules.extend(normalize_policy(data))
+            data = json.load(uploaded_file)
 
-    # CSV policy
-    elif filename.endswith(".csv"):
-        decoded = uploaded_file.read().decode("utf-8").splitlines()
-        reader = csv.DictReader(decoded)
+            if "Statement" in data:
+                rules.extend(normalize_policy(data))
 
-        for row in reader:
-            rules.append({
-                "Effect": row.get("Effect", "Allow"),
-                "Action": row.get("Action", "*"),
-                "Resource": row.get("Resource", "*")
-            })
+        # YAML policy
+        elif filename.endswith(".yaml") or filename.endswith(".yml"):
 
-    # TXT policy
-    elif filename.endswith(".txt"):
-        text = uploaded_file.read().decode("utf-8")
+            data = yaml.safe_load(uploaded_file)
 
-        if "*" in text:
-            rules.append({
-                "Effect": "Allow",
-                "Action": "*",
-                "Resource": "*"
-            })
+            if data and "Statement" in data:
+                rules.extend(normalize_policy(data))
+
+        # CSV policy
+        elif filename.endswith(".csv"):
+
+            decoded = uploaded_file.read().decode("utf-8").splitlines()
+            reader = csv.DictReader(decoded)
+
+            for row in reader:
+                rules.append(
+                    {
+                        "Effect": row.get("Effect", "Allow"),
+                        "Action": row.get("Action", "*"),
+                        "Resource": row.get("Resource", "*"),
+                    }
+                )
+
+        # TXT policy
+        elif filename.endswith(".txt"):
+
+            text = uploaded_file.read().decode("utf-8")
+
+            if "*" in text:
+                rules.append({"Effect": "Allow", "Action": "*", "Resource": "*"})
 
     if not rules:
         return jsonify({"error": "Invalid policy file"})
 
+    # -------- ANALYZE POLICY --------
     result = analyze_policy(rules)
 
     result.pop("graph", None)
@@ -102,20 +121,23 @@ def analyze():
     if username:
         save_scan(username, risk_score, risk_level, issues_count)
 
-    return jsonify({
-        "risk_score": result["risk_score"],
-        "security_score": result["security_score"],
-        "issues": result["issues"],
-        "recommendations": result["recommendations"],
-        "attack_paths": result["attack_paths"],
-        "service_risk": result["service_risk"],
-        "ai_summary": result["ai_summary"],
-        "ai_text": result["ai_text"]
-    })
+    return jsonify(
+        {
+            "risk_score": result["risk_score"],
+            "security_score": result["security_score"],
+            "issues": result["issues"],
+            "recommendations": result["recommendations"],
+            "attack_paths": result["attack_paths"],
+            "service_risk": result["service_risk"],
+            "ai_summary": result["ai_summary"],
+            "ai_text": result["ai_text"],
+        }
+    )
 
 
 @app.route("/download_report", methods=["POST"])
 def download_report():
+
     data = request.get_json()
 
     filepath = "cloud_security_report.pdf"
@@ -126,12 +148,13 @@ def download_report():
         filepath,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name="cloud_security_report.pdf"
+        download_name="cloud_security_report.pdf",
     )
 
 
 @app.route("/history")
 def history():
+
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
@@ -142,6 +165,7 @@ def history():
     vulnerability_counts = {}
 
     for scan in scans:
+
         issues_count = scan[2]
 
         if issues_count > 0:
@@ -150,9 +174,7 @@ def history():
             )
 
     top_vulnerabilities = sorted(
-        vulnerability_counts.items(),
-        key=lambda x: x[1],
-        reverse=True
+        vulnerability_counts.items(), key=lambda x: x[1], reverse=True
     )
 
     services = ["IAM", "S3", "EC2", "Lambda"]
@@ -160,25 +182,23 @@ def history():
 
     service_fig = go.Figure()
 
-    service_fig.add_trace(go.Bar(
-        x=services,
-        y=service_risk_values,
-        marker_color="orange"
-    ))
+    service_fig.add_trace(
+        go.Bar(x=services, y=service_risk_values, marker_color="orange")
+    )
 
     service_fig.update_layout(
         title="Top Vulnerable Services",
         xaxis_title="Cloud Service",
         yaxis_title="Risk Count",
         template="plotly_dark",
-        height=350
+        height=350,
     )
 
     service_chart = plot(
         service_fig,
         output_type="div",
         include_plotlyjs=False,
-        config={"displaylogo": False, "displayModeBar": False}
+        config={"displaylogo": False, "displayModeBar": False},
     )
 
     total_scans = len(scans)
@@ -193,30 +213,25 @@ def history():
 
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(
-    x=timestamps,
-    y=risk_scores,
-    mode='lines+markers',
-    name='Risk Score'
-    ))
+    fig.add_trace(
+        go.Scatter(x=timestamps, y=risk_scores, mode="lines+markers", name="Risk Score")
+    )
 
-    
     fig.update_layout(
-        title = "Risk Score Trend",
+        title="Risk Score Trend",
         height=420,
         xaxis_title="Time",
         yaxis_title="Risk Score",
         template="plotly_dark",
-        margin = dict(l=20,r=20,t=40,b=20),
-        xaxis_tickangle=-45
+        margin=dict(l=20, r=20, t=40, b=20),
+        xaxis_tickangle=-45,
     )
 
     chart = plot(
         fig,
         output_type="div",
         include_plotlyjs=False,
-        config={"displaylogo": False,
-                "displayModeBar": False}
+        config={"displaylogo": False, "displayModeBar": False},
     )
 
     return render_template(
@@ -228,12 +243,13 @@ def history():
         high_risk=high_risk,
         medium_risk=medium_risk,
         low_risk=low_risk,
-        top_vulnerabilities=top_vulnerabilities
+        top_vulnerabilities=top_vulnerabilities,
     )
 
 
 @app.route("/export_csv")
 def export_csv():
+
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
@@ -242,15 +258,11 @@ def export_csv():
     scans = get_scan_history(username)
 
     def generate():
+
         data = [["Risk Score", "Risk Level", "Issues", "Time"]]
 
         for scan in scans:
-            data.append([
-                scan[0],
-                scan[1],
-                scan[2],
-                scan[3]
-            ])
+            data.append([scan[0], scan[1], scan[2], scan[3]])
 
         for row in data:
             yield ",".join(map(str, row)) + "\n"
@@ -258,9 +270,7 @@ def export_csv():
     return Response(
         generate(),
         mimetype="text/csv",
-        headers={
-            "Content-Disposition": "attachment;filename=scan_history.csv"
-        }
+        headers={"Content-Disposition": "attachment;filename=scan_history.csv"},
     )
 
 

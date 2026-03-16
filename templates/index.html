@@ -56,14 +56,14 @@
             padding: 20px;
             border-radius: 10px;
             text-align: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
             transition: tranform 0.2s, box-shadow 0.2s ease;
-            
+
         }
 
         .card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 18px rgba(0,0,0,0.6);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6);
         }
 
         .card h3 {
@@ -97,7 +97,7 @@
             border-radius: 10px;
             margin-bottom: 30px;
             min-height: 380px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
             transition: transform 0.2s ease;
         }
 
@@ -111,7 +111,7 @@
             background: #1e293b;
             border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
         }
 
         th {
@@ -157,7 +157,9 @@
 
         <div class="upload-box">
 
-            <input type="file" id="file">
+            <input type="file" id="file" multiple>
+            <p id="selectedFile" style="margin-top:10px;color:#94a3b8;"></p>
+
             <button id="analyzeBtn" onclick="upload()">Analyze Policy</button>
 
             <button onclick="downloadJSON()">Export JSON</button>
@@ -312,21 +314,51 @@
 
         let analysisData = null
 
+        function saveFileName() {
+
+            let fileInput = document.getElementById("file")
+
+            if (fileInput.files.length > 0) {
+
+                let name = fileInput.files[0].name
+
+                localStorage.setItem("lastUploadedFile", name)
+
+                document.getElementById("selectedFile").innerText =
+                    "Selected file: " + name
+            }
+
+        }
+
+        window.onload = function () {
+
+            let saved = localStorage.getItem("lastUploadedFile")
+
+            if (saved) {
+                document.getElementById("selectedFile").innerText =
+                    "Selected file: " + saved
+            }
+
+        }
+
         async function upload() {
 
             document.getElementById("loading").style.display = "block"
             document.getElementById("analyzeBtn").disabled = true
 
             let fileInput = document.getElementById("file")
-            let file = fileInput.files[0]
+            let files = fileInput.files
 
-            if (!file) {
-                alert("Please select a policy file")
+            if (files.length === 0) {
+                alert("Please select at least one policy file")
                 return
             }
 
             let formData = new FormData()
-            formData.append("file", file)
+
+            for (let i = 0; i < files.length; i++) {
+                formData.append("files", files[i])
+            }
 
             let response = await fetch("/analyze", {
                 method: "POST",
