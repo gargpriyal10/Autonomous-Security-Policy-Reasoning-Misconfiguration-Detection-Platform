@@ -155,6 +155,32 @@ def history():
         reverse=True
     )
 
+    services = ["IAM", "S3", "EC2", "Lambda"]
+    service_risk_values = [6, 4, 3, 2]
+
+    service_fig = go.Figure()
+
+    service_fig.add_trace(go.Bar(
+        x=services,
+        y=service_risk_values,
+        marker_color="orange"
+    ))
+
+    service_fig.update_layout(
+        title="Top Vulnerable Services",
+        xaxis_title="Cloud Service",
+        yaxis_title="Risk Count",
+        template="plotly_dark",
+        height=350
+    )
+
+    service_chart = plot(
+        service_fig,
+        output_type="div",
+        include_plotlyjs=False,
+        config={"displaylogo": False, "displayModeBar": False}
+    )
+
     total_scans = len(scans)
     high_risk = len([s for s in scans if s[1] == "HIGH"])
     medium_risk = len([s for s in scans if s[1] == "MEDIUM"])
@@ -174,14 +200,7 @@ def history():
     name='Risk Score'
     ))
 
-    # fig = px.line(
-    #     df,
-    #     x=timestamps,
-    #     y=risk_scores,
-    #     markers=True,
-    #     title="Risk Score Trend"
-    # )
-
+    
     fig.update_layout(
         title = "Risk Score Trend",
         height=420,
@@ -204,6 +223,7 @@ def history():
         "history.html",
         scans=scans,
         chart=chart,
+        service_chart=service_chart,
         total_scans=total_scans,
         high_risk=high_risk,
         medium_risk=medium_risk,

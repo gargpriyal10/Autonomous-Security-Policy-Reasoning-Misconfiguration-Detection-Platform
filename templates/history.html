@@ -24,162 +24,186 @@
 
 <body>
 
-<h2>Security Scan History</h2>
+    <h2>Security Scan History</h2>
 
-<div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
 
-    <a href="/" class="btn btn-primary">
-        Back to Dashboard
-    </a>
+        <a href="/" class="btn btn-primary">
+            Back to Dashboard
+        </a>
 
-    <a href="/export_csv" class="btn btn-success">
-        Download Scan History CSV
-    </a>
+        <a href="/export_csv" class="btn btn-success">
+            Download Scan History CSV
+        </a>
 
-</div>
-
-<div style="display:flex; gap:20px; margin-bottom:30px;">
-
-    <div class="card bg-dark text-white p-3" style="flex:1; text-align:center;">
-        <h5>Total Scans</h5>
-        <h2>{{ total_scans }}</h2>
     </div>
 
-    <div class="card bg-danger text-white p-3" style="flex:1; text-align:center;">
-        <h5>High Risk</h5>
-        <h2>{{ high_risk }}</h2>
+
+    <!-- Summary Cards -->
+
+    <div style="display:flex; gap:20px; margin-bottom:30px;">
+
+        <div class="card bg-dark text-white p-3" style="flex:1; text-align:center;">
+            <h5>Total Scans</h5>
+            <h2>{{ total_scans }}</h2>
+        </div>
+
+        <div class="card bg-danger text-white p-3" style="flex:1; text-align:center;">
+            <h5>High Risk</h5>
+            <h2>{{ high_risk }}</h2>
+        </div>
+
+        <div class="card bg-warning text-dark p-3" style="flex:1; text-align:center;">
+            <h5>Medium Risk</h5>
+            <h2>{{ medium_risk }}</h2>
+        </div>
+
+        <div class="card bg-success text-white p-3" style="flex:1; text-align:center;">
+            <h5>Low Risk</h5>
+            <h2>{{ low_risk }}</h2>
+        </div>
+
     </div>
 
-    <div class="card bg-warning text-dark p-3" style="flex:1; text-align:center;">
-        <h5>Medium Risk</h5>
-        <h2>{{ medium_risk }}</h2>
+
+    <!-- Risk Trend Chart -->
+
+    <h4 style="margin-top:30px;">Risk Score Trend</h4>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <div style="margin-bottom:40px;">
+        {{ chart | safe }}
     </div>
 
-    <div class="card bg-success text-white p-3" style="flex:1; text-align:center;">
-        <h5>Low Risk</h5>
-        <h2>{{ low_risk }}</h2>
+
+    <!-- Top Vulnerable Services Chart -->
+
+    <h4 style="margin-top:30px;">Top Vulnerable Services</h4>
+
+    <div style="margin-bottom:40px;">
+        {{ service_chart | safe }}
     </div>
 
-</div>
 
-<h4 style="margin-top:30px;">Risk Score Trend</h4>
+    <!-- Top Detected Security Issues -->
 
-<ul class="list-group mb-4">
+    <h4 style="margin-top:30px;">Top Detected Security Issues</h4>
 
-{% for vuln, count in top_vulnerabilities %}
+    <ul class="list-group mb-4">
 
-<li class="list-group-item d-flex justify-content-between align-items-center">
-    {{ vuln }}
-    <span class="badge bg-danger rounded-pill">{{ count }}</span>
-</li>
+        {% for vuln, count in top_vulnerabilities %}
 
-{% endfor %}
-
-</ul>
-
-<!--<div id="riskChart" style = "height:400px; margin-bottom:40px;"></div>-->
-
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
-<div style="margin-bottom:40px;">
-    {{ chart | safe }}
-</div>
-
-<div style="margin-bottom:20px;">
-
-</div>
-
-<div style="display:flex; gap:20px; margin-bottom:20px;">
-
-<input 
-    type="text" 
-    id="searchInput" 
-    onkeyup="searchTable()" 
-    placeholder="Search scan history..."
-    class="form-control"
-    style="max-width:300px;"
->
-
-<select id="riskFilter" class="form-select" style="width:200px;" onchange="filterTable()">
-<option value="ALL">All Risks</option>
-<option value="HIGH">High Risk</option>
-<option value="MEDIUM">Medium Risk</option>
-<option value="LOW">Low Risk</option>
-</select>
-
-</div>
-
-<table id="scanTable" class="table table-dark table-striped">
-    <thead>
-        <tr>
-            <th>Risk Score</th>
-            <th>Risk Level</th>
-            <th>Issues</th>
-            <th>Time</th>
-        </tr>
-    </thead>
-
-    <tbody>
-
-        {% for scan in scans %}
-
-        <tr>
-            <td>{{ scan[0] }}</td>
-            <td>{{ scan[1] }}</td>
-            <td>{{ scan[2] }}</td>
-            <td>{{ scan[3] }}</td>
-        </tr>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ vuln }}
+            <span class="badge bg-danger rounded-pill">{{ count }}</span>
+        </li>
 
         {% endfor %}
 
-    </tbody>
+    </ul>
 
-</table>
 
-<script>
-function filterTable() {
+    <!-- Search + Filter -->
 
-    var filter = document.getElementById("riskFilter").value;
-    var table = document.getElementById("scanTable");
-    var rows = table.getElementsByTagName("tr");
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
 
-    for (var i = 1; i < rows.length; i++) {
+        <input type="text" id="searchInput" onkeyup="searchTable()" placeholder="Search scan history..."
+            class="form-control" style="max-width:300px;">
 
-        var riskLevel = rows[i].cells[1].innerText;
+        <select id="riskFilter" class="form-select" style="width:200px;" onchange="filterTable()">
+            <option value="ALL">All Risks</option>
+            <option value="HIGH">High Risk</option>
+            <option value="MEDIUM">Medium Risk</option>
+            <option value="LOW">Low Risk</option>
+        </select>
 
-        if (filter === "ALL" || riskLevel === filter) {
-            rows[i].style.display = "";
-        } else {
-            rows[i].style.display = "none";
+    </div>
+
+
+    <!-- Scan Table -->
+
+    <table id="scanTable" class="table table-dark table-striped">
+
+        <thead>
+            <tr>
+                <th>Risk Score</th>
+                <th>Risk Level</th>
+                <th>Issues</th>
+                <th>Time</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for scan in scans %}
+
+            <tr>
+                <td>{{ scan[0] }}</td>
+                <td>{{ scan[1] }}</td>
+                <td>{{ scan[2] }}</td>
+                <td>{{ scan[3] }}</td>
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+
+    <script>
+
+        function filterTable() {
+
+            var filter = document.getElementById("riskFilter").value;
+            var table = document.getElementById("scanTable");
+            var rows = table.getElementsByTagName("tr");
+
+            for (var i = 1; i < rows.length; i++) {
+
+                var riskLevel = rows[i].cells[1].innerText;
+
+                if (filter === "ALL" || riskLevel === filter) {
+                    rows[i].style.display = "";
+                }
+                else {
+                    rows[i].style.display = "none";
+                }
+
+            }
+
         }
 
-    }
-}
-</script>
+    </script>
 
-<script>
 
-function searchTable() {
+    <script>
 
-    var input = document.getElementById("searchInput");
-    var filter = input.value.toUpperCase();
-    var table = document.getElementById("scanTable");
-    var tr = table.getElementsByTagName("tr");
+        function searchTable() {
 
-    for (var i = 1; i < tr.length; i++) {
+            var input = document.getElementById("searchInput");
+            var filter = input.value.toUpperCase();
+            var table = document.getElementById("scanTable");
+            var tr = table.getElementsByTagName("tr");
 
-        var rowText = tr[i].innerText.toUpperCase();
+            for (var i = 1; i < tr.length; i++) {
 
-        if (rowText.indexOf(filter) > -1) {
-            tr[i].style.display = "";
-        } else {
-            tr[i].style.display = "none";
+                var rowText = tr[i].innerText.toUpperCase();
+
+                if (rowText.indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                }
+                else {
+                    tr[i].style.display = "none";
+                }
+
+            }
+
         }
 
-    }
-}
+    </script>
 
-</script>
 
 </body>
 
