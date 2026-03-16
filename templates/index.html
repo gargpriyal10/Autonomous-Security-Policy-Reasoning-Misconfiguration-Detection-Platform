@@ -80,12 +80,15 @@
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin-top: 40px;
+            row-gap: 40px;
         }
 
         .chart-box {
             background: #1e293b;
             padding: 20px;
             border-radius: 10px;
+            margin-bottom: 30px;
+            min-height: 380px;
         }
 
         table {
@@ -119,18 +122,18 @@
 <body>
     <div style="display:flex; justify-content:space-between; padding:20px;">
 
-    <a href="/history" 
-       style="background:#38bdf8; color:black; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:bold;">
-       View Scan History
-    </a>
+        <a href="/history"
+            style="background:#38bdf8; color:black; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:bold;">
+            View Scan History
+        </a>
 
-    <a href="/logout" 
-       style="background:#f87171; color:black; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:bold;">
-       Logout
-    </a>
+        <a href="/logout"
+            style="background:#f87171; color:black; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:bold;">
+            Logout
+        </a>
 
-</div>
-    
+    </div>
+
     <div class="container">
 
         <h1>Cloud Security Policy Analyzer</h1>
@@ -183,8 +186,8 @@
 
             <div class="chart-box">
 
-            <h2>Risk Score</h2>
-            <div id="riskGauge" style="height:350px;"></div>
+                <h2>Risk Score</h2>
+                <div id="riskGauge" style="height:350px;"></div>
 
             </div>
 
@@ -211,6 +214,13 @@
                 <div id="serviceRiskChart" style="height:350px;"></div>
 
             </div>
+
+        </div>
+
+        <div class="chart-box">
+
+            <h2>Security Issue Categories</h2>
+            <div id="issueCategoryChart" style="height:350px;"></div>
 
         </div>
 
@@ -272,9 +282,9 @@
 
     <div class="section">
 
-    <h2>AI Security Analysis</h2>
+        <h2>AI Security Analysis</h2>
 
-    <ul id="aiExplanation"></ul>
+        <ul id="aiExplanation"></ul>
 
     </div>
 
@@ -406,34 +416,34 @@
 
             /* AI SECURITY ANALYSIS */
 
-        let aiList = document.getElementById("aiExplanation")
-        aiList.innerHTML = ""
+            let aiList = document.getElementById("aiExplanation")
+            aiList.innerHTML = ""
 
-        if (data.ai_summary) {
+            if (data.ai_summary) {
 
-        let li = document.createElement("li")
-        li.textContent = data.ai_summary
-        aiList.appendChild(li)
+                let li = document.createElement("li")
+                li.textContent = data.ai_summary
+                aiList.appendChild(li)
 
-        }
+            }
 
-        if (data.ai_text) {
+            if (data.ai_text) {
 
-            let sentences = data.ai_text.split(".")
+                let sentences = data.ai_text.split(".")
 
-            sentences.forEach(sentence => {
+                sentences.forEach(sentence => {
 
-                if (sentence.trim() !== "") {
+                    if (sentence.trim() !== "") {
 
-                    let li = document.createElement("li")
-                    li.textContent = sentence.trim()
-                    aiList.appendChild(li)
+                        let li = document.createElement("li")
+                        li.textContent = sentence.trim()
+                        aiList.appendChild(li)
 
-                }
+                    }
 
-            })
+                })
 
-        }
+            }
 
 
             /* RISK PIE CHART */
@@ -456,6 +466,60 @@
                 {
                     paper_bgcolor: "#1e293b",
                     font: { color: "white" }
+                },
+                { displaylogo: false }
+            )
+
+            /* ISSUE CATEGORY ANALYTICS */
+
+            let categories = {
+                "Access Control": 0,
+                "Privilege Escalation": 0,
+                "Public Exposure": 0,
+                "Data Protection": 0,
+                "Other": 0
+            }
+
+            data.issues.forEach(issue => {
+
+                let text = issue.problem.toLowerCase()
+
+                if (text.includes("wildcard") || text.includes("permission")) {
+                    categories["Access Control"]++
+
+                } else if (text.includes("privilege") || text.includes("admin")) {
+                    categories["Privilege Escalation"]++
+
+                } else if (text.includes("public")) {
+                    categories["Public Exposure"]++
+
+                } else if (text.includes("data") || text.includes("sensitive")) {
+                    categories["Data Protection"]++
+
+                } else {
+                    categories["Other"]++
+                }
+
+            })
+
+            let catLabels = Object.keys(categories)
+            let catValues = Object.values(categories)
+
+            Plotly.newPlot(
+                "issueCategoryChart",
+                [{
+                    x: catLabels,
+                    y: catValues,
+                    type: "bar",
+                    marker: {
+                        color: "#38bdf8"
+                    }
+                }],
+                {
+                    paper_bgcolor: "#1e293b",
+                    plot_bgcolor: "#1e293b",
+                    font: { color: "white" },
+                    title: "Security Issue Categories"
                 },
                 { displaylogo: false }
             )
