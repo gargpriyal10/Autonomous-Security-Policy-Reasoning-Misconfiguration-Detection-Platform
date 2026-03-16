@@ -66,6 +66,44 @@ def analyze_policy(rules):
 
     # Detect misconfigurations
     issues, risk_score = detect_misconfigurations(rules)
+
+    # -------- ADDITIONAL DATA PROTECTION & NETWORK SECURITY CHECKS --------
+    for rule in rules:
+
+        action = str(rule.get("Action", "")).lower()
+        resource = str(rule.get("Resource", "")).lower()
+
+        # Data Protection Check (S3 without restriction)
+        if "s3" in action and "*" in resource:
+
+            issues.append(
+                {
+                    "risk": "MEDIUM",
+                    "problem": "Unrestricted S3 Access",
+                    "reason": "Sensitive data storage may be exposed without encryption enforcement",
+                    "service": "S3",
+                    "severity": "Medium",
+                }
+            )
+
+            risk_score += 10
+
+        # Network Security Check (Public infrastructure exposure)
+        if "*" in resource and ("ec2" in action or "network" in action):
+
+            issues.append(
+                {
+                    "risk": "HIGH",
+                    "problem": "Public Infrastructure Exposure",
+                    "reason": "Cloud infrastructure may be accessible from the public internet",
+                    "service": "EC2",
+                    "severity": "High",
+                }
+            )
+
+            risk_score += 20
+    # ---------------------------------------------------------------------
+
     ai_summary = generate_ai_summary(issues, risk_score)
 
     # -------- POLICY CONFLICT DETECTION --------
@@ -81,6 +119,7 @@ def analyze_policy(rules):
 
     # Generate recommendations
     recs = generate_recommendations(issues)
+
     service_risk = calculate_service_risk(issues)
 
     # Build policy graph
