@@ -112,8 +112,10 @@
 
         ul {
             background: #1e293b;
-            padding: 20px;
+            padding: 20px 30px;
             border-radius: 10px;
+            margin-top: 15px;
+            line-height: 1.8;
         }
     </style>
 
@@ -278,7 +280,7 @@
 
         </div>
 
-    </div>
+    
 
     <div class="section">
 
@@ -429,7 +431,7 @@
 
             if (data.ai_text) {
 
-                let sentences = data.ai_text.split(".")
+                let sentences = data.ai_text.split(/[.]/)
 
                 sentences.forEach(sentence => {
 
