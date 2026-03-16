@@ -56,6 +56,14 @@
             padding: 20px;
             border-radius: 10px;
             text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            transition: tranform 0.2s, box-shadow 0.2s ease;
+            
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.6);
         }
 
         .card h3 {
@@ -89,6 +97,12 @@
             border-radius: 10px;
             margin-bottom: 30px;
             min-height: 380px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+            transition: transform 0.2s ease;
+        }
+
+        .chart-box:hover {
+            transform: translateY(-3px);
         }
 
         table {
@@ -97,6 +111,7 @@
             background: #1e293b;
             border-radius: 10px;
             overflow: hidden;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
         }
 
         th {
@@ -212,7 +227,7 @@
 
             <div class="chart-box">
 
-                <h2>Service Risk Analytics</h2>
+                <h2>Top Risky Cloud Services</h2>
                 <div id="serviceRiskChart" style="height:350px;"></div>
 
             </div>
@@ -280,15 +295,15 @@
 
         </div>
 
-    
 
-    <div class="section">
 
-        <h2>AI Security Analysis</h2>
+        <div class="section">
 
-        <ul id="aiExplanation"></ul>
+            <h2>AI Security Analysis</h2>
 
-    </div>
+            <ul id="aiExplanation"></ul>
+
+        </div>
 
     </div>
 
@@ -726,46 +741,39 @@
             setTimeout(animateAttack, 1000)
 
 
-            /* SERVICE RISK */
+            /* TOP RISKY CLOUD SERVICES */
 
             if (data.service_risk) {
 
-                let services = Object.keys(data.service_risk)
-                let scores = services.map(s => data.service_risk[s].risk_score)
+                let services = Object.entries(data.service_risk)
+
+                // sort by risk score
+                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
+
+                let topServices = services.slice(0, 5)
+
+                let names = topServices.map(s => s[0] || "Other")
+                let scores = topServices.map(s => s[1].risk_score)
 
                 Plotly.newPlot(
                     "serviceRiskChart",
                     [{
-                        x: services, y: scores, type: "scatter",
-                        mode: "lines+markers",
-                        line: { color: "#3b82f6", width: 3 },
-                        marker: { size: 10, color: "#3b82f6" }
+                        y: names,
+                        x: scores,
+                        type: "bar",
+                        orientation: "h",
+                        marker: {
+                            color: "#3b82f6"
+                        }
                     }],
                     {
                         paper_bgcolor: "#1e293b",
                         plot_bgcolor: "#1e293b",
-                        font: { color: "white" }
+                        font: { color: "white" },
+                        xaxis: { title: "Risk Score" },
+                        yaxis: { title: "Service" }
                     },
-                    {
-                        displaylogo: false,
-                        modeBarButtonsToRemove: [
-                            "lasso2d",
-                            "zoom2d",
-                            "select2d",
-                            "autoScale2d",
-                            "toggleSpikelines",
-                            "orbitRotation",
-                            "tableRotation"
-                        ],
-                        modeBarButtonsToAdd: [
-                            "zoomIn2d",
-                            "zoomOut2d",
-                            "hoverClosestCartesian",
-                            "hoverCompareCartesian",
-                            "pan2d",
-                            "resetScale2d"
-                        ]
-                    }
+                    { displaylogo: false }
                 )
 
             }
