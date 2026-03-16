@@ -73,7 +73,9 @@ def analyze_policy(rules):
         action = str(rule.get("Action", "")).lower()
         resource = str(rule.get("Resource", "")).lower()
 
-        # Data Protection Check (S3 without restriction)
+        # ---------------- DATA PROTECTION CHECK ----------------
+
+        # Unrestricted S3 Access
         if "s3" in action and "*" in resource:
 
             issues.append(
@@ -88,7 +90,24 @@ def analyze_policy(rules):
 
             risk_score += 10
 
-        # Network Security Check (Public infrastructure exposure)
+        # Missing Encryption Enforcement
+        if "s3:getobject" in action and "*" in resource:
+
+            issues.append(
+                {
+                    "risk": "MEDIUM",
+                    "problem": "Missing Encryption Enforcement",
+                    "reason": "S3 objects may be accessed without encryption protection",
+                    "service": "S3",
+                    "severity": "Medium",
+                }
+            )
+
+            risk_score += 10
+
+        # ---------------- NETWORK SECURITY CHECK ----------------
+
+        # Public Infrastructure Exposure
         if "*" in resource and ("ec2" in action or "network" in action):
 
             issues.append(
@@ -102,6 +121,7 @@ def analyze_policy(rules):
             )
 
             risk_score += 20
+
     # ---------------------------------------------------------------------
 
     ai_summary = generate_ai_summary(issues, risk_score)
