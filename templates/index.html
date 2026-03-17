@@ -323,6 +323,33 @@
                 flex-direction: column;
             }
         }
+
+        /* Add to your existing CSS, around line 300 */
+        .clear-btn {
+            background: #64748b;
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            margin-left: 10px;
+        }
+
+        .clear-btn:hover {
+            background: #475569;
+        }
+
+        body.light-mode .clear-btn {
+            background: #94a3b8;
+            color: #0f172a;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        body.light-mode .clear-btn:hover {
+            background: #64748b;
+            color: white;
+        }
     </style>
 
 </head>
@@ -366,6 +393,9 @@
             <button onclick="downloadJSON()">Export JSON</button>
 
             <button onclick="downloadReport()">Download PDF Report</button>
+
+            <!-- NEW CLEAR BUTTON -->
+            <button onclick="clearSavedData()" style="background:#64748b; margin-left:10px;">Clear Saved Data</button>
 
             <div id="loading" style="display:none; margin-top:15px;">
                 <p>Analyzing Cloud Policy...</p>
@@ -518,18 +548,24 @@
 
     <script>
 
-        let analysisData = null
+        // Global variable to store analysis data
+        let analysisData = null;
 
+        // ========== FILE HANDLING FUNCTIONS ==========
         function saveFileName() {
-            let fileInput = document.getElementById("file")
+            let fileInput = document.getElementById("file");
             if (fileInput.files.length > 0) {
-                let name = fileInput.files[0].name
-                localStorage.setItem("lastUploadedFile", name)
+                let names = [];
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    names.push(fileInput.files[i].name);
+                }
+                localStorage.setItem("lastUploadedFile", names.join(", "));
                 document.getElementById("selectedFile").innerText =
-                    "Selected file: " + name
+                    "Selected files: " + names.join(", ");
             }
         }
 
+        // ========== THEME FUNCTIONS ==========
         function toggleTheme() {
             let body = document.body;
             let btn = document.getElementById("themeBtn");
@@ -539,13 +575,9 @@
             if (body.classList.contains("light-mode")) {
                 localStorage.setItem("theme", "light");
                 btn.innerHTML = "☀️ Light";
-                btn.style.background = "#facc15";
-                btn.style.color = "#0f172a";
             } else {
                 localStorage.setItem("theme", "dark");
                 btn.innerHTML = "🌙 Dark";
-                btn.style.background = "#facc15";
-                btn.style.color = "#0f172a";
             }
 
             updateChartThemes(body.classList.contains("light-mode"));
@@ -560,37 +592,43 @@
             charts.forEach(chartId => {
                 let chartDiv = document.getElementById(chartId);
                 if (chartDiv && chartDiv.data) {
-                    Plotly.relayout(chartId, {
-                        "paper_bgcolor": bgColor,
-                        "plot_bgcolor": bgColor,
-                        "font.color": textColor
-                    });
+                    try {
+                        Plotly.relayout(chartId, {
+                            "paper_bgcolor": bgColor,
+                            "plot_bgcolor": bgColor,
+                            "font.color": textColor
+                        });
+                    } catch (e) {
+                        console.log("Chart not ready for theme update:", chartId);
+                    }
                 }
             });
         }
 
-        // MAIN UPLOAD FUNCTION - THIS IS THE ONLY ONE
+        // ========== UPLOAD FUNCTION ==========
         async function upload() {
             console.log("Upload function started");
 
-            document.getElementById("loading").style.display = "block"
-            document.getElementById("analyzeBtn").disabled = true
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("analyzeBtn").disabled = true;
 
-            let fileInput = document.getElementById("file")
-            let files = fileInput.files
+            let fileInput = document.getElementById("file");
+            let files = fileInput.files;
 
             if (files.length === 0) {
-                alert("Please select at least one policy file")
-                document.getElementById("loading").style.display = "none"
-                document.getElementById("analyzeBtn").disabled = false
-                return
+                alert("Please select at least one policy file");
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("analyzeBtn").disabled = false;
+                return;
             }
 
-            let formData = new FormData()
+            analysisData = null; // Clear previous analysis data on new upload
+
+            let formData = new FormData();
 
             for (let i = 0; i < files.length; i++) {
                 console.log("Appending file:", files[i].name);
-                formData.append("files", files[i])
+                formData.append("files", files[i]);
             }
 
             try {
@@ -599,58 +637,68 @@
                 let response = await fetch("/analyze", {
                     method: "POST",
                     body: formData
-                })
+                });
 
                 console.log("Response status:", response.status);
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
                 }
 
-                let data = await response.json()
+                let data = await response.json();
                 console.log("Response data:", data);
 
-                analysisData = data
+                analysisData = data;
 
                 // Save to localStorage immediately after getting data
-                saveAnalysisData()
+                saveAnalysisData();
 
-                document.getElementById("loading").style.display = "none"
-                document.getElementById("analyzeBtn").disabled = false
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("analyzeBtn").disabled = false;
 
                 // Update dashboard with new data
-                updateDashboardWithData(data)
+                updateDashboardWithData(data);
 
             } catch (error) {
                 console.error("Error in upload:", error);
-                document.getElementById("loading").style.display = "none"
-                document.getElementById("analyzeBtn").disabled = false
-                alert("Error analyzing policy: " + error.message)
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("analyzeBtn").disabled = false;
+                alert("Error analyzing policy: " + error.message);
             }
         }
 
+        // ========== EXPORT FUNCTIONS ==========
         function downloadJSON() {
+            console.log("downloadJSON called");
             if (!analysisData) {
-                alert("Please analyze a policy first")
-                return
+                alert("Please analyze a policy first");
+                return;
             }
 
-            const dataStr = JSON.stringify(analysisData, null, 2)
-            const blob = new Blob([dataStr], { type: "application/json" })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement("a")
-            a.href = url
-            a.download = "security_analysis.json"
-            document.body.appendChild(a)
-            a.click()
-            document.body.removeChild(a)
-            URL.revokeObjectURL(url)
+            try {
+                const dataStr = JSON.stringify(analysisData, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "security_analysis.json";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                console.log("JSON download completed");
+            } catch (error) {
+                console.error("Error downloading JSON:", error);
+                alert("Error downloading JSON: " + error.message);
+            }
         }
 
         function downloadReport() {
+            console.log("downloadReport called");
             if (!analysisData) {
-                alert("Analyze a policy first")
-                return
+                alert("Analyze a policy first");
+                return;
             }
 
             fetch("/download_report", {
@@ -660,41 +708,59 @@
                 },
                 body: JSON.stringify(analysisData)
             })
-                .then(res => res.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob)
-                    const a = document.createElement("a")
-                    a.href = url
-                    a.download = "cloud_security_report.pdf"
-                    document.body.appendChild(a)
-                    a.click()
-                    a.remove()
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.blob();
                 })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "cloud_security_report.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    console.log("PDF download completed");
+                })
+                .catch(error => {
+                    console.error("Error downloading report:", error);
+                    alert("Error downloading report: " + error.message);
+                });
         }
 
-        // Save analysis data to localStorage before leaving page
+        // ========== DATA PERSISTENCE FUNCTIONS ==========
         function saveAnalysisData() {
             if (analysisData) {
                 localStorage.setItem('lastAnalysisData', JSON.stringify(analysisData));
                 localStorage.setItem('lastAnalysisTimestamp', Date.now());
+                console.log("Analysis data saved to localStorage");
             }
         }
 
-        // Load analysis data from localStorage when returning to dashboard
         function loadSavedAnalysis() {
+            // Don't auto-load if we're on a fresh page load without user action
+            // Only load if there's no existing analysis and user hasn't uploaded anything new
             let saved = localStorage.getItem('lastAnalysisData');
             let timestamp = localStorage.getItem('lastAnalysisTimestamp');
+            let hasFile = document.getElementById("file").files.length > 0;
 
-            if (saved && timestamp) {
+            // Check if we should load saved data
+            if (saved && timestamp && !hasFile && !analysisData) {
                 // Check if data is less than 1 hour old (3600000 ms)
                 if (Date.now() - parseInt(timestamp) < 3600000) {
                     try {
                         analysisData = JSON.parse(saved);
-                        updateDashboardWithData(analysisData);
 
-                        // Show message that previous analysis is loaded
-                        document.getElementById("selectedFile").innerText =
-                            "Loaded previous analysis from " + new Date(parseInt(timestamp)).toLocaleTimeString();
+                        // Only update UI if there's no file selected and no current analysis
+                        if (!hasFile && !analysisData) {
+                            updateDashboardWithData(analysisData);
+                            document.getElementById("selectedFile").innerText =
+                                "Loaded previous analysis from " + new Date(parseInt(timestamp)).toLocaleTimeString();
+                            console.log("Previous analysis loaded from localStorage");
+                        }
                     } catch (e) {
                         console.error("Failed to load saved analysis", e);
                     }
@@ -702,195 +768,267 @@
             }
         }
 
-        // Function to update dashboard with data
+        // ========== DASHBOARD UPDATE FUNCTIONS ==========
         function updateDashboardWithData(data) {
-            document.getElementById("totalFiles").innerText = data.total_files || '-'
-            document.getElementById("riskScore").innerText = data.risk_score || '-'
-            document.getElementById("securityScore").innerText = data.security_score || '-'
-            document.getElementById("issueCount").innerText = (data.issues || []).length
+            console.log("Updating dashboard with data");
 
-            /* SECURITY GAUGE */
-            let gaugeData = [{
-                type: "indicator",
-                mode: "gauge+number",
-                value: data.security_score,
-                title: { text: "Security Score" },
-                gauge: {
-                    axis: { range: [0, 100] },
-                    steps: [
-                        { range: [0, 40], color: "red" },
-                        { range: [40, 70], color: "orange" },
-                        { range: [70, 100], color: "green" }
-                    ]
-                }
-            }]
+            // Update metrics
+            document.getElementById("totalFiles").innerText = data.total_files || '-';
+            document.getElementById("riskScore").innerText = data.risk_score || '-';
+            document.getElementById("securityScore").innerText = data.security_score || '-';
+            document.getElementById("issueCount").innerText = (data.issues || []).length;
 
-            Plotly.newPlot(
-                "securityGauge",
-                gaugeData,
-                {
-                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
-                },
-                { displaylogo: false }
-            )
+            // SECURITY GAUGE
+            if (data.security_score) {
+                let gaugeData = [{
+                    type: "indicator",
+                    mode: "gauge+number",
+                    value: data.security_score,
+                    title: { text: "Security Score" },
+                    gauge: {
+                        axis: { range: [0, 100] },
+                        steps: [
+                            { range: [0, 40], color: "red" },
+                            { range: [40, 70], color: "orange" },
+                            { range: [70, 100], color: "green" }
+                        ]
+                    }
+                }];
 
-            /* RISK SCORE GAUGE */
-            let riskGauge = [{
-                type: "indicator",
-                mode: "gauge+number",
-                value: data.risk_score,
-                title: { text: "Risk Score" },
-                gauge: {
-                    axis: { range: [0, 100] },
-                    steps: [
-                        { range: [0, 30], color: "green" },
-                        { range: [30, 70], color: "orange" },
-                        { range: [70, 100], color: "red" }
-                    ]
-                }
-            }]
+                Plotly.newPlot(
+                    "securityGauge",
+                    gaugeData,
+                    {
+                        paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                        font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
+                    },
+                    { displaylogo: false }
+                );
+            }
 
-            Plotly.newPlot(
-                "riskGauge",
-                riskGauge,
-                {
-                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
-                },
-                { displaylogo: false }
-            )
+            // RISK GAUGE
+            if (data.risk_score) {
+                let riskGauge = [{
+                    type: "indicator",
+                    mode: "gauge+number",
+                    value: data.risk_score,
+                    title: { text: "Risk Score" },
+                    gauge: {
+                        axis: { range: [0, 100] },
+                        steps: [
+                            { range: [0, 30], color: "green" },
+                            { range: [30, 70], color: "orange" },
+                            { range: [70, 100], color: "red" }
+                        ]
+                    }
+                }];
 
-            /* ISSUES TABLE */
-            let tableBody = document.querySelector("#issuesTable tbody")
-            tableBody.innerHTML = ""
+                Plotly.newPlot(
+                    "riskGauge",
+                    riskGauge,
+                    {
+                        paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                        font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
+                    },
+                    { displaylogo: false }
+                );
+            }
 
-            data.issues.forEach(issue => {
-                let row = `<tr>
-                    <td>${issue.risk}</td>
-                    <td>${issue.problem}</td>
-                    <td>${issue.reason}</td>
-                </tr>`
-                tableBody.innerHTML += row
-            })
+            // ISSUES TABLE
+            if (data.issues && data.issues.length > 0) {
+                let tableBody = document.querySelector("#issuesTable tbody");
+                tableBody.innerHTML = "";
+                data.issues.forEach(issue => {
+                    let row = `<tr>
+                        <td>${issue.risk || 'N/A'}</td>
+                        <td>${issue.problem || 'N/A'}</td>
+                        <td>${issue.reason || 'N/A'}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            }
 
-            /* RECOMMENDATIONS */
-            let recList = document.getElementById("recommendations")
-            recList.innerHTML = ""
+            // RECOMMENDATIONS
+            if (data.recommendations && data.recommendations.length > 0) {
+                let recList = document.getElementById("recommendations");
+                recList.innerHTML = "";
+                data.recommendations.forEach(r => {
+                    let li = document.createElement("li");
+                    li.textContent = r;
+                    recList.appendChild(li);
+                });
+            }
 
-            data.recommendations.forEach(r => {
-                let li = document.createElement("li")
-                li.textContent = r
-                recList.appendChild(li)
-            })
-
-            /* AI SECURITY ANALYSIS */
-            let aiList = document.getElementById("aiExplanation")
-            aiList.innerHTML = ""
+            // AI SECURITY ANALYSIS
+            let aiList = document.getElementById("aiExplanation");
+            aiList.innerHTML = "";
 
             if (data.ai_summary) {
-                let li = document.createElement("li")
-                li.textContent = data.ai_summary
-                aiList.appendChild(li)
+                let li = document.createElement("li");
+                li.textContent = data.ai_summary;
+                aiList.appendChild(li);
             }
 
             if (data.ai_text) {
-                let sentences = data.ai_text.split(/[.]/)
+                let sentences = data.ai_text.split(/[.]/);
                 sentences.forEach(sentence => {
                     if (sentence.trim() !== "") {
-                        let li = document.createElement("li")
-                        li.textContent = sentence.trim()
-                        aiList.appendChild(li)
+                        let li = document.createElement("li");
+                        li.textContent = sentence.trim();
+                        aiList.appendChild(li);
                     }
-                })
+                });
             }
 
-            /* RISK PIE CHART */
-            let riskCounts = {}
-            data.issues.forEach(issue => {
-                if (!riskCounts[issue.risk]) {
-                    riskCounts[issue.risk] = 0
+            // RISK PIE CHART
+            if (data.issues && data.issues.length > 0) {
+                let riskCounts = {};
+                data.issues.forEach(issue => {
+                    let risk = issue.risk || 'UNKNOWN';
+                    riskCounts[risk] = (riskCounts[risk] || 0) + 1;
+                });
+
+                Plotly.newPlot(
+                    "riskChart",
+                    [{
+                        labels: Object.keys(riskCounts),
+                        values: Object.values(riskCounts),
+                        type: "pie"
+                    }],
+                    {
+                        paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                        font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
+                    },
+                    { displaylogo: false }
+                );
+            }
+
+            // ISSUE CATEGORY CHART
+            if (data.issues && data.issues.length > 0) {
+                let categories = {
+                    "Access Control": 0,
+                    "Privilege Escalation": 0,
+                    "Public Exposure": 0,
+                    "Data Protection": 0,
+                    "Other": 0
+                };
+
+                data.issues.forEach(issue => {
+                    let text = (issue.problem || "").toLowerCase();
+                    if (text.includes("wildcard") || text.includes("permission")) {
+                        categories["Access Control"]++;
+                    } else if (text.includes("privilege") || text.includes("admin")) {
+                        categories["Privilege Escalation"]++;
+                    } else if (text.includes("public")) {
+                        categories["Public Exposure"]++;
+                    } else if (text.includes("data") || text.includes("sensitive")) {
+                        categories["Data Protection"]++;
+                    } else {
+                        categories["Other"]++;
+                    }
+                });
+
+                Plotly.newPlot(
+                    "issueCategoryChart",
+                    [{
+                        x: Object.keys(categories),
+                        y: Object.values(categories),
+                        type: "bar",
+                        marker: { color: "#3b82f6" }
+                    }],
+                    {
+                        paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                        plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                        font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                        title: "Security Issue Categories"
+                    },
+                    { displaylogo: false }
+                );
+            }
+
+            // SERVICE RISK CHART
+            if (data.service_risk) {
+                let services = Object.entries(data.service_risk);
+
+                // Filter out invalid service names
+                services = services.filter(([service, info]) => {
+                    return service && service !== "undefined" && service !== "other" && service !== "None" && service.trim() !== "";
+                });
+
+                if (services.length > 0) {
+                    services.sort((a, b) => b[1].risk_score - a[1].risk_score);
+                    let topServices = services.slice(0, 5);
+                    let names = topServices.map(s => s[0] || "Unknown");
+                    let scores = topServices.map(s => s[1].risk_score);
+
+                    Plotly.newPlot(
+                        "serviceRiskChart",
+                        [{
+                            y: names,
+                            x: scores,
+                            type: "bar",
+                            orientation: "h",
+                            marker: { color: "#3b82f6" }
+                        }],
+                        {
+                            paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                            plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                            font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                            xaxis: { title: "Risk Score" },
+                            yaxis: { title: "Service" }
+                        },
+                        { displaylogo: false }
+                    );
                 }
-                riskCounts[issue.risk]++
-            })
-
-            let labels = Object.keys(riskCounts)
-            let values = Object.values(riskCounts)
-
-            Plotly.newPlot(
-                "riskChart",
-                [{ labels: labels, values: values, type: "pie" }],
-                {
-                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
-                },
-                { displaylogo: false }
-            )
-
-            /* ISSUE CATEGORY ANALYTICS */
-            let categories = {
-                "Access Control": 0,
-                "Privilege Escalation": 0,
-                "Public Exposure": 0,
-                "Data Protection": 0,
-                "Other": 0
             }
 
-            data.issues.forEach(issue => {
-                let text = issue.problem.toLowerCase()
-                if (text.includes("wildcard") || text.includes("permission")) {
-                    categories["Access Control"]++
-                } else if (text.includes("privilege") || text.includes("admin")) {
-                    categories["Privilege Escalation"]++
-                } else if (text.includes("public")) {
-                    categories["Public Exposure"]++
-                } else if (text.includes("data") || text.includes("sensitive")) {
-                    categories["Data Protection"]++
+            // SERVICE TABLE
+            if (data.service_risk) {
+                let tableBody = document.querySelector("#serviceTable tbody");
+                tableBody.innerHTML = "";
+
+                let services = Object.entries(data.service_risk);
+
+                // Filter out invalid service names
+                services = services.filter(([service, info]) => {
+                    return service && service !== "undefined" && service !== "other" && service !== "None" && service.trim() !== "";
+                });
+
+                if (services.length > 0) {
+                    services.sort((a, b) => b[1].risk_score - a[1].risk_score);
+                    services.forEach(([service, info]) => {
+                        let row = `<tr>
+                            <td>${service || "Unknown"}</td>
+                            <td>${info.count || 0}</td>
+                            <td>${info.risk_score || 0}</td>
+                        </tr>`;
+                        tableBody.innerHTML += row;
+                    });
                 } else {
-                    categories["Other"]++
+                    tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No service risk data available</td></tr>';
                 }
-            })
+            }
+        }
 
-            let catLabels = Object.keys(categories)
-            let catValues = Object.values(categories)
-
-            Plotly.newPlot(
-                "issueCategoryChart",
-                [{
-                    x: catLabels,
-                    y: catValues,
-                    type: "bar",
-                    marker: {
-                        color: "#38bdf8"
-                    }
-                }],
-                {
-                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                    plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
-                    title: "Security Issue Categories"
-                },
-                { displaylogo: false }
-            )
-
-            /* ATTACK GRAPH - NETWORK STYLE */
-            let nodes = []
-            let edges = []
+        // ========== ATTACK GRAPH FUNCTIONS ==========
+        function renderAttackGraph(data) {
+            let nodes = [];
+            let edges = [];
 
             if (data.attack_paths && data.attack_paths.length > 0) {
                 data.attack_paths.forEach(path => {
                     for (let i = 0; i < path.length; i++) {
                         if (!nodes.includes(path[i])) {
-                            nodes.push(path[i])
+                            nodes.push(path[i]);
                         }
                         if (i < path.length - 1) {
                             edges.push({
                                 from: path[i],
                                 to: path[i + 1]
-                            })
+                            });
                         }
                     }
-                })
+                });
             } else {
                 nodes = [
                     "Internet User",
@@ -898,55 +1036,52 @@
                     "Privilege Escalation",
                     "S3 Bucket",
                     "Sensitive Data"
-                ]
+                ];
                 edges = [
                     { from: "Internet User", to: "IAM Role" },
                     { from: "IAM Role", to: "Privilege Escalation" },
                     { from: "Privilege Escalation", to: "S3 Bucket" },
                     { from: "S3 Bucket", to: "Sensitive Data" }
-                ]
+                ];
             }
 
-            /* NETWORK LAYOUT POSITIONS */
-            let nodeX = []
-            let nodeY = []
+            // NETWORK LAYOUT POSITIONS
+            let nodeX = [];
+            let nodeY = [];
             nodes.forEach((n, i) => {
-                nodeX.push(Math.cos(i) * 3)
-                nodeY.push(Math.sin(i) * 3)
-            })
+                nodeX.push(Math.cos(i) * 3);
+                nodeY.push(Math.sin(i) * 3);
+            });
 
-            /* BUILD EDGE LINES */
-            let edgeX = []
-            let edgeY = []
+            // BUILD EDGE LINES
+            let edgeX = [];
+            let edgeY = [];
             edges.forEach(e => {
-                let x0 = nodeX[nodes.indexOf(e.from)]
-                let y0 = nodeY[nodes.indexOf(e.from)]
-                let x1 = nodeX[nodes.indexOf(e.to)]
-                let y1 = nodeY[nodes.indexOf(e.to)]
-                edgeX.push(x0, x1, null)
-                edgeY.push(y0, y1, null)
-            })
+                let x0 = nodeX[nodes.indexOf(e.from)];
+                let y0 = nodeY[nodes.indexOf(e.from)];
+                let x1 = nodeX[nodes.indexOf(e.to)];
+                let y1 = nodeY[nodes.indexOf(e.to)];
+                edgeX.push(x0, x1, null);
+                edgeY.push(y0, y1, null);
+            });
 
             let edgeTrace = {
                 x: edgeX,
                 y: edgeY,
                 mode: "lines",
-                line: {
-                    width: 2,
-                    color: "#94a3b8"
-                },
+                line: { width: 2, color: "#94a3b8" },
                 hoverinfo: "none",
                 type: "scatter"
-            }
+            };
 
             let nodeColors = nodes.map(node => {
-                if (node.includes("User")) return "#3b82f6"
-                if (node.includes("IAM")) return "#f97316"
-                if (node.includes("Privilege")) return "#ef4444"
-                if (node.includes("S3")) return "#eab308"
-                if (node.includes("Sensitive")) return "#a855f7"
-                return "#94a3b8"
-            })
+                if (node.includes("User")) return "#3b82f6";
+                if (node.includes("IAM")) return "#f97316";
+                if (node.includes("Privilege")) return "#ef4444";
+                if (node.includes("S3")) return "#eab308";
+                if (node.includes("Sensitive")) return "#a855f7";
+                return "#94a3b8";
+            });
 
             let nodeTrace = {
                 x: nodeX,
@@ -954,13 +1089,10 @@
                 text: nodes,
                 mode: "markers+text",
                 textposition: "top center",
-                marker: {
-                    size: 28,
-                    color: nodeColors
-                },
+                marker: { size: 28, color: nodeColors },
                 hoverinfo: "text",
                 type: "scatter"
-            }
+            };
 
             Plotly.newPlot(
                 "attackGraph",
@@ -976,100 +1108,44 @@
                 {
                     displaylogo: false,
                     modeBarButtonsToRemove: [
-                        "lasso2d",
-                        "select2d",
-                        "zoom2d",
-                        "autoScale2d",
-                        "toggleSpikelines",
-                        "orbitRotation",
-                        "tableRotation"
+                        "lasso2d", "select2d", "zoom2d", "autoScale2d",
+                        "toggleSpikelines", "orbitRotation", "tableRotation"
                     ],
                     modeBarButtonsToAdd: [
-                        "zoomIn2d",
-                        "zoomOut2d",
-                        "hoverClosestCartesian",
-                        "hoverCompareCartesian",
-                        "pan2d",
-                        "resetScale2d"
+                        "zoomIn2d", "zoomOut2d", "hoverClosestCartesian",
+                        "hoverCompareCartesian", "pan2d", "resetScale2d"
                     ]
                 }
-            )
+            );
 
-            /* ATTACK PATH ANIMATION */
-            let step = 0
+            // ATTACK PATH ANIMATION
+            let step = 0;
             function animateAttack() {
-                if (step >= edges.length) return
-                let e = edges[step]
-                let x0 = nodeX[nodes.indexOf(e.from)]
-                let y0 = nodeY[nodes.indexOf(e.from)]
-                let x1 = nodeX[nodes.indexOf(e.to)]
-                let y1 = nodeY[nodes.indexOf(e.to)]
+                if (step >= edges.length) return;
+                let e = edges[step];
+                let x0 = nodeX[nodes.indexOf(e.from)];
+                let y0 = nodeY[nodes.indexOf(e.from)];
+                let x1 = nodeX[nodes.indexOf(e.to)];
+                let y1 = nodeY[nodes.indexOf(e.to)];
                 let attackTrace = {
                     x: [x0, x1],
                     y: [y0, y1],
                     mode: "lines",
-                    line: {
-                        width: 6,
-                        color: "#ef4444"
-                    },
+                    line: { width: 6, color: "#ef4444" },
                     type: "scatter"
-                }
-                Plotly.addTraces("attackGraph", attackTrace)
-                step++
-                setTimeout(animateAttack, 800)
+                };
+                Plotly.addTraces("attackGraph", attackTrace);
+                step++;
+                setTimeout(animateAttack, 800);
             }
-            setTimeout(animateAttack, 1000)
-
-            /* TOP RISKY CLOUD SERVICES */
-            if (data.service_risk) {
-                let services = Object.entries(data.service_risk)
-                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
-                let topServices = services.slice(0, 5)
-                let names = topServices.map(s => s[0] || "Other")
-                let scores = topServices.map(s => s[1].risk_score)
-
-                Plotly.newPlot(
-                    "serviceRiskChart",
-                    [{
-                        y: names,
-                        x: scores,
-                        type: "bar",
-                        orientation: "h",
-                        marker: {
-                            color: "#3b82f6"
-                        }
-                    }],
-                    {
-                        paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                        plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                        font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
-                        xaxis: { title: "Risk Score" },
-                        yaxis: { title: "Service" }
-                    },
-                    { displaylogo: false }
-                )
-            }
-
-            /* TOP VULNERABLE SERVICES - SORTED */
-            if (data.service_risk) {
-                let tableBody = document.querySelector("#serviceTable tbody")
-                tableBody.innerHTML = ""
-                let services = Object.entries(data.service_risk)
-                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
-                services.forEach(([service, info]) => {
-                    let row = `<tr>
-                    <td>${service || "Other"}</td>
-                    <td>${info.count}</td>
-                    <td>${info.risk_score}</td>
-                    </tr>`
-                    tableBody.innerHTML += row
-                })
-            }
+            setTimeout(animateAttack, 1000);
         }
 
-        // Load saved theme and data on page load
+        // ========== INITIALIZATION ==========
         window.onload = function () {
-            // ---------- THEME ----------
+            console.log("Page loaded, initializing...");
+
+            // Load theme
             let savedTheme = localStorage.getItem("theme");
             let btn = document.getElementById("themeBtn");
 
@@ -1084,21 +1160,174 @@
             btn.style.background = "#facc15";
             btn.style.color = "#0f172a";
 
-            // ---------- FILE NAME ----------
+            // Load saved file name
             let savedFile = localStorage.getItem("lastUploadedFile");
             if (savedFile) {
                 document.getElementById("selectedFile").innerText =
-                    "Selected file: " + savedFile;
+                    "Selected files: " + savedFile;
             }
 
-            // ---------- LOAD SAVED ANALYSIS ----------
-            loadSavedAnalysis();
+            // Load saved analysis
+            //loadSavedAnalysis();
+
+            // Set up event listeners for file input
+            document.getElementById("file").addEventListener("change", saveFileName);
         };
 
-        // Add beforeunload event to save data
+        // Save data before page unload
         window.addEventListener('beforeunload', function () {
             saveAnalysisData();
         });
+
+        // ========== CLEAR SAVED DATA FUNCTION ==========
+        function clearSavedData() {
+            console.log("Clearing saved data...");
+
+            // Clear localStorage
+            localStorage.removeItem('lastAnalysisData');
+            localStorage.removeItem('lastAnalysisTimestamp');
+
+            // Clear global variable
+            analysisData = null;
+
+            // Clear the metric cards
+            document.getElementById("riskScore").innerText = '-';
+            document.getElementById("totalFiles").innerText = '-';
+            document.getElementById("securityScore").innerText = '-';
+            document.getElementById("issueCount").innerText = '-';
+
+            // Clear tables
+            document.querySelector("#issuesTable tbody").innerHTML = '';
+            document.querySelector("#serviceTable tbody").innerHTML = '';
+
+            // Clear lists
+            document.getElementById("recommendations").innerHTML = '';
+            document.getElementById("aiExplanation").innerHTML = '';
+
+            // Clear charts (purge them completely)
+            let charts = ["securityGauge", "riskGauge", "riskChart", "issueCategoryChart", "serviceRiskChart", "attackGraph"];
+            charts.forEach(chartId => {
+                let chartDiv = document.getElementById(chartId);
+                if (chartDiv) {
+                    try {
+                        Plotly.purge(chartId);
+                    } catch (e) {
+                        console.log("Error purging chart:", chartId, e);
+                    }
+                }
+            });
+
+            // Clear file input and filename display
+            document.getElementById("file").value = '';
+            document.getElementById("selectedFile").innerText = '';
+            localStorage.removeItem('lastUploadedFile');
+
+            // Show empty charts with default messages
+            showEmptyCharts();
+
+            console.log("Saved data cleared successfully");
+        }
+
+        // Helper function to show empty charts
+        function showEmptyCharts() {
+            // Empty security gauge
+            Plotly.newPlot("securityGauge", [{
+                type: "indicator",
+                mode: "gauge+number",
+                value: 0,
+                title: { text: "Security Score" },
+                gauge: {
+                    axis: { range: [0, 100] },
+                    steps: [
+                        { range: [0, 40], color: "red" },
+                        { range: [40, 70], color: "orange" },
+                        { range: [70, 100], color: "green" }
+                    ]
+                }
+            }], {
+                paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
+            }, { displaylogo: false });
+
+            // Empty risk gauge
+            Plotly.newPlot("riskGauge", [{
+                type: "indicator",
+                mode: "gauge+number",
+                value: 0,
+                title: { text: "Risk Score" },
+                gauge: {
+                    axis: { range: [0, 100] },
+                    steps: [
+                        { range: [0, 30], color: "green" },
+                        { range: [30, 70], color: "orange" },
+                        { range: [70, 100], color: "red" }
+                    ]
+                }
+            }], {
+                paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
+            }, { displaylogo: false });
+
+            // Empty pie chart
+            Plotly.newPlot("riskChart", [{
+                labels: ["No Data"],
+                values: [1],
+                type: "pie"
+            }], {
+                paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
+            }, { displaylogo: false });
+
+            // Empty category chart
+            Plotly.newPlot("issueCategoryChart", [{
+                x: ["No Data"],
+                y: [0],
+                type: "bar",
+                marker: { color: "#94a3b8" }
+            }], {
+                paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                title: "Security Issue Categories"
+            }, { displaylogo: false });
+
+            // Empty service chart
+            Plotly.newPlot("serviceRiskChart", [{
+                y: ["No Data"],
+                x: [0],
+                type: "bar",
+                orientation: "h",
+                marker: { color: "#94a3b8" }
+            }], {
+                paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                xaxis: { title: "Risk Score", range: [0, 100] },
+                yaxis: { title: "Service" }
+            }, { displaylogo: false });
+
+            // Empty attack graph
+            let emptyNodes = ["No Data Available"];
+            let emptyNodeX = [0];
+            let emptyNodeY = [0];
+
+            Plotly.newPlot("attackGraph", [{
+                x: emptyNodeX,
+                y: emptyNodeY,
+                text: emptyNodes,
+                mode: "markers+text",
+                textposition: "middle center",
+                marker: { size: 20, color: "#94a3b8" },
+                type: "scatter"
+            }], {
+                paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                xaxis: { visible: false },
+                yaxis: { visible: false },
+                showlegend: false
+            }, { displaylogo: false });
+        }
 
     </script>
 
