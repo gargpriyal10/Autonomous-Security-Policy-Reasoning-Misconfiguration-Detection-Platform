@@ -243,7 +243,7 @@
 
         <div class="upload-box">
 
-            <input type="file" id="file" multiple>
+            <input type="file" id="file" multiple onchange="saveFileName()">
             <p id="selectedFile" style="margin-top:10px;color:#94a3b8;"></p>
 
             <button id="analyzeBtn" onclick="upload()">Analyze Policy</button>
@@ -406,29 +406,21 @@
         let analysisData = null
 
         function saveFileName() {
-
             let fileInput = document.getElementById("file")
-
             if (fileInput.files.length > 0) {
-
                 let name = fileInput.files[0].name
-
                 localStorage.setItem("lastUploadedFile", name)
-
                 document.getElementById("selectedFile").innerText =
                     "Selected file: " + name
             }
-
         }
 
         function toggleTheme() {
             let body = document.body;
             let btn = document.getElementById("themeBtn");
 
-            // Toggle the light-mode class
             body.classList.toggle("light-mode");
 
-            // Update button text and localStorage based on current theme
             if (body.classList.contains("light-mode")) {
                 localStorage.setItem("theme", "light");
                 btn.innerHTML = "☀️ Light";
@@ -444,39 +436,11 @@
             updateChartThemes(body.classList.contains("light-mode"));
         }
 
-        window.onload = function () {
-            // ---------- THEME ----------
-            let savedTheme = localStorage.getItem("theme");
-            let btn = document.getElementById("themeBtn");
-
-            if (savedTheme === "light") {
-                document.body.classList.add("light-mode");
-                btn.innerHTML = "☀️ Light";
-            } else {
-                // Default to dark theme
-                document.body.classList.remove("light-mode");
-                btn.innerHTML = "🌙 Dark";
-            }
-
-            // Set button styles
-            btn.style.background = "#facc15";
-            btn.style.color = "#0f172a";
-
-            // ---------- FILE NAME ----------
-            let savedFile = localStorage.getItem("lastUploadedFile");
-            if (savedFile) {
-                document.getElementById("selectedFile").innerText =
-                    "Selected file: " + savedFile;
-            }
-        }
-
-        // Add this AFTER window.onload function and BEFORE upload() function
         function updateChartThemes(isLightMode) {
             const bgColor = isLightMode ? "#ffffff" : "#1e293b";
             const textColor = isLightMode ? "#0f172a" : "white";
 
-            // Update each chart if they exist
-            let charts = ["securityGauge", "riskGauge", "riskChart", "issueCategoryChart", "serviceRiskChart"];
+            let charts = ["securityGauge", "riskGauge", "riskChart", "issueCategoryChart", "serviceRiskChart", "attackGraph"];
 
             charts.forEach(chartId => {
                 let chartDiv = document.getElementById(chartId);
@@ -490,9 +454,9 @@
             });
         }
 
-
-
+        // MAIN UPLOAD FUNCTION - THIS IS THE ONLY ONE
         async function upload() {
+            console.log("Upload function started");
 
             document.getElementById("loading").style.display = "block"
             document.getElementById("analyzeBtn").disabled = true
@@ -502,520 +466,73 @@
 
             if (files.length === 0) {
                 alert("Please select at least one policy file")
+                document.getElementById("loading").style.display = "none"
+                document.getElementById("analyzeBtn").disabled = false
                 return
             }
 
             let formData = new FormData()
 
             for (let i = 0; i < files.length; i++) {
+                console.log("Appending file:", files[i].name);
                 formData.append("files", files[i])
             }
 
-            let response = await fetch("/analyze", {
-                method: "POST",
-                body: formData
-            })
+            try {
+                console.log("Sending request to /analyze...");
 
-            let data = await response.json()
-
-            analysisData = data
-
-            document.getElementById("loading").style.display = "none"
-            document.getElementById("analyzeBtn").disabled = false
-            document.getElementById("totalFiles").innerText = data.total_files
-            document.getElementById("riskScore").innerText = data.risk_score
-            document.getElementById("securityScore").innerText = data.security_score
-            document.getElementById("issueCount").innerText = data.issues.length
-
-
-            /* SECURITY GAUGE */
-
-            let gaugeData = [{
-                type: "indicator",
-                mode: "gauge+number",
-                value: data.security_score,
-                title: { text: "Security Score" },
-                gauge: {
-                    axis: { range: [0, 100] },
-                    steps: [
-                        { range: [0, 40], color: "red" },
-                        { range: [40, 70], color: "orange" },
-                        { range: [70, 100], color: "green" }
-                    ]
-                }
-            }]
-
-            Plotly.newPlot(
-                "securityGauge",
-                gaugeData,
-                {
-                    paper_bgcolor: "#1e293b",
-                    font: { color: "white" }
-                },
-                { displaylogo: false }
-            )
-
-            /* RISK SCORE GAUGE */
-
-            let riskGauge = [{
-                type: "indicator",
-                mode: "gauge+number",
-                value: data.risk_score,
-                title: { text: "Risk Score" },
-                gauge: {
-                    axis: { range: [0, 100] },
-                    steps: [
-                        { range: [0, 30], color: "green" },
-                        { range: [30, 70], color: "orange" },
-                        { range: [70, 100], color: "red" }
-                    ]
-                }
-            }]
-
-            Plotly.newPlot(
-                "riskGauge",
-                riskGauge,
-                {
-                    paper_bgcolor: "#1e293b",
-                    font: { color: "white" }
-                },
-                { displaylogo: false }
-            )
-
-
-            /* ISSUES TABLE */
-
-            let tableBody = document.querySelector("#issuesTable tbody")
-            tableBody.innerHTML = ""
-
-            data.issues.forEach(issue => {
-
-                let row = `<tr>
-                    <td>${issue.risk}</td>
-                    <td>${issue.problem}</td>
-                    <td>${issue.reason}</td>
-                </tr>`
-
-                tableBody.innerHTML += row
-
-            })
-
-
-            /* RECOMMENDATIONS */
-
-            let recList = document.getElementById("recommendations")
-            recList.innerHTML = ""
-
-            data.recommendations.forEach(r => {
-
-                let li = document.createElement("li")
-                li.textContent = r
-                recList.appendChild(li)
-
-            })
-
-            /* AI SECURITY ANALYSIS */
-
-            let aiList = document.getElementById("aiExplanation")
-            aiList.innerHTML = ""
-
-            if (data.ai_summary) {
-
-                let li = document.createElement("li")
-                li.textContent = data.ai_summary
-                aiList.appendChild(li)
-
-            }
-
-            if (data.ai_text) {
-
-                let sentences = data.ai_text.split(/[.]/)
-
-                sentences.forEach(sentence => {
-
-                    if (sentence.trim() !== "") {
-
-                        let li = document.createElement("li")
-                        li.textContent = sentence.trim()
-                        aiList.appendChild(li)
-
-                    }
-
+                let response = await fetch("/analyze", {
+                    method: "POST",
+                    body: formData
                 })
 
-            }
+                console.log("Response status:", response.status);
 
-
-            /* RISK PIE CHART */
-
-            let riskCounts = {}
-
-            data.issues.forEach(issue => {
-                if (!riskCounts[issue.risk]) {
-                    riskCounts[issue.risk] = 0
-                }
-                riskCounts[issue.risk]++
-            })
-
-            let labels = Object.keys(riskCounts)
-            let values = Object.values(riskCounts)
-
-            Plotly.newPlot(
-                "riskChart",
-                [{ labels: labels, values: values, type: "pie" }],
-                {
-                    paper_bgcolor: "#1e293b",
-                    font: { color: "white" }
-                },
-                { displaylogo: false }
-            )
-
-            /* ISSUE CATEGORY ANALYTICS */
-
-            let categories = {
-                "Access Control": 0,
-                "Privilege Escalation": 0,
-                "Public Exposure": 0,
-                "Data Protection": 0,
-                "Other": 0
-            }
-
-            data.issues.forEach(issue => {
-
-                let text = issue.problem.toLowerCase()
-
-                if (text.includes("wildcard") || text.includes("permission")) {
-                    categories["Access Control"]++
-
-                } else if (text.includes("privilege") || text.includes("admin")) {
-                    categories["Privilege Escalation"]++
-
-                } else if (text.includes("public")) {
-                    categories["Public Exposure"]++
-
-                } else if (text.includes("data") || text.includes("sensitive")) {
-                    categories["Data Protection"]++
-
-                } else {
-                    categories["Other"]++
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-            })
+                let data = await response.json()
+                console.log("Response data:", data);
 
-            let catLabels = Object.keys(categories)
-            let catValues = Object.values(categories)
+                analysisData = data
 
-            Plotly.newPlot(
-                "issueCategoryChart",
-                [{
-                    x: catLabels,
-                    y: catValues,
-                    type: "bar",
-                    marker: {
-                        color: "#38bdf8"
-                    }
-                }],
-                {
-                    paper_bgcolor: "#1e293b",
-                    plot_bgcolor: "#1e293b",
-                    font: { color: "white" },
-                    title: "Security Issue Categories"
-                },
-                { displaylogo: false }
-            )
+                // Save to localStorage immediately after getting data
+                saveAnalysisData()
 
+                document.getElementById("loading").style.display = "none"
+                document.getElementById("analyzeBtn").disabled = false
 
-            /* ATTACK GRAPH - NETWORK STYLE */
+                // Update dashboard with new data
+                updateDashboardWithData(data)
 
-            let nodes = []
-            let edges = []
-
-            if (data.attack_paths && data.attack_paths.length > 0) {
-
-                data.attack_paths.forEach(path => {
-
-                    for (let i = 0; i < path.length; i++) {
-
-                        if (!nodes.includes(path[i])) {
-                            nodes.push(path[i])
-                        }
-
-                        if (i < path.length - 1) {
-                            edges.push({
-                                from: path[i],
-                                to: path[i + 1]
-                            })
-                        }
-
-                    }
-
-                })
-
-            } else {
-
-                nodes = [
-                    "Internet User",
-                    "IAM Role",
-                    "Privilege Escalation",
-                    "S3 Bucket",
-                    "Sensitive Data"
-                ]
-
-                edges = [
-                    { from: "Internet User", to: "IAM Role" },
-                    { from: "IAM Role", to: "Privilege Escalation" },
-                    { from: "Privilege Escalation", to: "S3 Bucket" },
-                    { from: "S3 Bucket", to: "Sensitive Data" }
-                ]
-
+            } catch (error) {
+                console.error("Error in upload:", error);
+                document.getElementById("loading").style.display = "none"
+                document.getElementById("analyzeBtn").disabled = false
+                alert("Error analyzing policy: " + error.message)
             }
-
-
-            /* NETWORK LAYOUT POSITIONS */
-
-            let nodeX = []
-            let nodeY = []
-
-            nodes.forEach((n, i) => {
-
-                // spread nodes in network pattern
-                nodeX.push(Math.cos(i) * 3)
-                nodeY.push(Math.sin(i) * 3)
-
-            })
-
-
-            /* BUILD EDGE LINES */
-
-            let edgeX = []
-            let edgeY = []
-
-            edges.forEach(e => {
-
-                let x0 = nodeX[nodes.indexOf(e.from)]
-                let y0 = nodeY[nodes.indexOf(e.from)]
-
-                let x1 = nodeX[nodes.indexOf(e.to)]
-                let y1 = nodeY[nodes.indexOf(e.to)]
-
-                edgeX.push(x0, x1, null)
-                edgeY.push(y0, y1, null)
-
-            })
-
-
-            let edgeTrace = {
-                x: edgeX,
-                y: edgeY,
-                mode: "lines",
-                line: {
-                    width: 2,
-                    color: "#94a3b8"
-                },
-                hoverinfo: "none",
-                type: "scatter"
-            }
-
-
-            let nodeColors = nodes.map(node => {
-
-                if (node.includes("User"))
-                    return "#3b82f6"   // blue
-
-                if (node.includes("IAM"))
-                    return "#f97316"   // orange
-
-                if (node.includes("Privilege"))
-                    return "#ef4444"   // red
-
-                if (node.includes("S3"))
-                    return "#eab308"   // yellow
-
-                if (node.includes("Sensitive"))
-                    return "#a855f7"   // purple
-
-                return "#94a3b8"       // default gray
-            })
-
-
-            let nodeTrace = {
-                x: nodeX,
-                y: nodeY,
-                text: nodes,
-                mode: "markers+text",
-                textposition: "top center",
-                marker: {
-                    size: 28,
-                    color: nodeColors
-                },
-                hoverinfo: "text",
-                type: "scatter"
-            }
-
-
-            Plotly.newPlot(
-                "attackGraph",
-                [edgeTrace, nodeTrace],
-                {
-                    paper_bgcolor: "#1e293b",
-                    plot_bgcolor: "#1e293b",
-                    font: { color: "white" },
-                    xaxis: { visible: false },
-                    yaxis: { visible: false },
-                    showlegend: false
-                },
-                {
-                    displaylogo: false,
-                    modeBarButtonsToRemove: [
-                        "lasso2d",
-                        "select2d",
-                        "zoom2d",
-                        "autoScale2d",
-                        "toggleSpikelines",
-                        "orbitRotation",
-                        "tableRotation"
-                    ],
-                    modeBarButtonsToAdd: [
-                        "zoomIn2d",
-                        "zoomOut2d",
-                        "hoverClosestCartesian",
-                        "hoverCompareCartesian",
-                        "pan2d",
-                        "resetScale2d"
-                    ]
-                }
-            )
-
-            /* ATTACK PATH ANIMATION */
-
-            let step = 0
-
-            function animateAttack() {
-
-                if (step >= edges.length) return
-
-                let e = edges[step]
-
-                let x0 = nodeX[nodes.indexOf(e.from)]
-                let y0 = nodeY[nodes.indexOf(e.from)]
-
-                let x1 = nodeX[nodes.indexOf(e.to)]
-                let y1 = nodeY[nodes.indexOf(e.to)]
-
-                let attackTrace = {
-                    x: [x0, x1],
-                    y: [y0, y1],
-                    mode: "lines",
-                    line: {
-                        width: 6,
-                        color: "#ef4444"
-                    },
-                    type: "scatter"
-                }
-
-                Plotly.addTraces("attackGraph", attackTrace)
-
-                step++
-
-                setTimeout(animateAttack, 800)
-
-            }
-
-            setTimeout(animateAttack, 1000)
-
-
-            /* TOP RISKY CLOUD SERVICES */
-
-            if (data.service_risk) {
-
-                let services = Object.entries(data.service_risk)
-
-                // sort by risk score
-                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
-
-                let topServices = services.slice(0, 5)
-
-                let names = topServices.map(s => s[0] || "Other")
-                let scores = topServices.map(s => s[1].risk_score)
-
-                Plotly.newPlot(
-                    "serviceRiskChart",
-                    [{
-                        y: names,
-                        x: scores,
-                        type: "bar",
-                        orientation: "h",
-                        marker: {
-                            color: "#3b82f6"
-                        }
-                    }],
-                    {
-                        paper_bgcolor: "#1e293b",
-                        plot_bgcolor: "#1e293b",
-                        font: { color: "white" },
-                        xaxis: { title: "Risk Score" },
-                        yaxis: { title: "Service" }
-                    },
-                    { displaylogo: false }
-                )
-
-            }
-
-            /* TOP VULNERABLE SERVICES - SORTED */
-
-            if (data.service_risk) {
-
-                let tableBody = document.querySelector("#serviceTable tbody")
-                tableBody.innerHTML = ""
-
-                // convert object → array and sort by risk score
-                let services = Object.entries(data.service_risk)
-
-                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
-
-                services.forEach(([service, info]) => {
-
-                    let row = `<tr>
-                    <td>${service || "Other"}</td>
-                    <td>${info.count}</td>
-                    <td>${info.risk_score}</td>
-                    </tr>`
-
-                    tableBody.innerHTML += row
-
-                })
-
-            }
-
         }
 
         function downloadJSON() {
-
             if (!analysisData) {
                 alert("Please analyze a policy first")
                 return
             }
 
             const dataStr = JSON.stringify(analysisData, null, 2)
-
             const blob = new Blob([dataStr], { type: "application/json" })
-
             const url = URL.createObjectURL(blob)
-
             const a = document.createElement("a")
             a.href = url
             a.download = "security_analysis.json"
-
             document.body.appendChild(a)
             a.click()
-
             document.body.removeChild(a)
-
             URL.revokeObjectURL(url)
         }
 
         function downloadReport() {
-
             if (!analysisData) {
                 alert("Analyze a policy first")
                 return
@@ -1030,13 +547,10 @@
             })
                 .then(res => res.blob())
                 .then(blob => {
-
                     const url = window.URL.createObjectURL(blob)
-
                     const a = document.createElement("a")
                     a.href = url
                     a.download = "cloud_security_report.pdf"
-
                     document.body.appendChild(a)
                     a.click()
                     a.remove()
@@ -1073,108 +587,372 @@
             }
         }
 
-        // New function to update dashboard with data
+        // Function to update dashboard with data
         function updateDashboardWithData(data) {
-            document.getElementById("totalFiles").innerText = data.total_files || '-';
-            document.getElementById("riskScore").innerText = data.risk_score || '-';
-            document.getElementById("securityScore").innerText = data.security_score || '-';
-            document.getElementById("issueCount").innerText = (data.issues || []).length;
+            document.getElementById("totalFiles").innerText = data.total_files || '-'
+            document.getElementById("riskScore").innerText = data.risk_score || '-'
+            document.getElementById("securityScore").innerText = data.security_score || '-'
+            document.getElementById("issueCount").innerText = (data.issues || []).length
 
-            // Update all charts (copy the chart rendering code from upload() function)
-            renderAllCharts(data);
-        }
+            /* SECURITY GAUGE */
+            let gaugeData = [{
+                type: "indicator",
+                mode: "gauge+number",
+                value: data.security_score,
+                title: { text: "Security Score" },
+                gauge: {
+                    axis: { range: [0, 100] },
+                    steps: [
+                        { range: [0, 40], color: "red" },
+                        { range: [40, 70], color: "orange" },
+                        { range: [70, 100], color: "green" }
+                    ]
+                }
+            }]
 
-        // Extract chart rendering to separate function
-        function renderAllCharts(data) {
-            // Copy all the Plotly chart rendering code from upload() function here
-            // Security Gauge
-            if (data.security_score) {
-                Plotly.newPlot("securityGauge", [{
-                    type: "indicator",
-                    mode: "gauge+number",
-                    value: data.security_score,
-                    title: { text: "Security Score" },
-                    gauge: {
-                        axis: { range: [0, 100] },
-                        steps: [
-                            { range: [0, 40], color: "red" },
-                            { range: [40, 70], color: "orange" },
-                            { range: [70, 100], color: "green" }
-                        ]
-                    }
-                }], {
+            Plotly.newPlot(
+                "securityGauge",
+                gaugeData,
+                {
                     paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
                     font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
-                }, { displaylogo: false });
-            }
+                },
+                { displaylogo: false }
+            )
 
-            // Risk Gauge
-            if (data.risk_score) {
-                Plotly.newPlot("riskGauge", [{
-                    type: "indicator",
-                    mode: "gauge+number",
-                    value: data.risk_score,
-                    title: { text: "Risk Score" },
-                    gauge: {
-                        axis: { range: [0, 100] },
-                        steps: [
-                            { range: [0, 30], color: "green" },
-                            { range: [30, 70], color: "orange" },
-                            { range: [70, 100], color: "red" }
-                        ]
-                    }
-                }], {
+            /* RISK SCORE GAUGE */
+            let riskGauge = [{
+                type: "indicator",
+                mode: "gauge+number",
+                value: data.risk_score,
+                title: { text: "Risk Score" },
+                gauge: {
+                    axis: { range: [0, 100] },
+                    steps: [
+                        { range: [0, 30], color: "green" },
+                        { range: [30, 70], color: "orange" },
+                        { range: [70, 100], color: "red" }
+                    ]
+                }
+            }]
+
+            Plotly.newPlot(
+                "riskGauge",
+                riskGauge,
+                {
                     paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
                     font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
-                }, { displaylogo: false });
+                },
+                { displaylogo: false }
+            )
+
+            /* ISSUES TABLE */
+            let tableBody = document.querySelector("#issuesTable tbody")
+            tableBody.innerHTML = ""
+
+            data.issues.forEach(issue => {
+                let row = `<tr>
+                    <td>${issue.risk}</td>
+                    <td>${issue.problem}</td>
+                    <td>${issue.reason}</td>
+                </tr>`
+                tableBody.innerHTML += row
+            })
+
+            /* RECOMMENDATIONS */
+            let recList = document.getElementById("recommendations")
+            recList.innerHTML = ""
+
+            data.recommendations.forEach(r => {
+                let li = document.createElement("li")
+                li.textContent = r
+                recList.appendChild(li)
+            })
+
+            /* AI SECURITY ANALYSIS */
+            let aiList = document.getElementById("aiExplanation")
+            aiList.innerHTML = ""
+
+            if (data.ai_summary) {
+                let li = document.createElement("li")
+                li.textContent = data.ai_summary
+                aiList.appendChild(li)
             }
 
-            // Issues Table
-            if (data.issues) {
-                let tableBody = document.querySelector("#issuesTable tbody");
-                tableBody.innerHTML = "";
-                data.issues.forEach(issue => {
+            if (data.ai_text) {
+                let sentences = data.ai_text.split(/[.]/)
+                sentences.forEach(sentence => {
+                    if (sentence.trim() !== "") {
+                        let li = document.createElement("li")
+                        li.textContent = sentence.trim()
+                        aiList.appendChild(li)
+                    }
+                })
+            }
+
+            /* RISK PIE CHART */
+            let riskCounts = {}
+            data.issues.forEach(issue => {
+                if (!riskCounts[issue.risk]) {
+                    riskCounts[issue.risk] = 0
+                }
+                riskCounts[issue.risk]++
+            })
+
+            let labels = Object.keys(riskCounts)
+            let values = Object.values(riskCounts)
+
+            Plotly.newPlot(
+                "riskChart",
+                [{ labels: labels, values: values, type: "pie" }],
+                {
+                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
+                },
+                { displaylogo: false }
+            )
+
+            /* ISSUE CATEGORY ANALYTICS */
+            let categories = {
+                "Access Control": 0,
+                "Privilege Escalation": 0,
+                "Public Exposure": 0,
+                "Data Protection": 0,
+                "Other": 0
+            }
+
+            data.issues.forEach(issue => {
+                let text = issue.problem.toLowerCase()
+                if (text.includes("wildcard") || text.includes("permission")) {
+                    categories["Access Control"]++
+                } else if (text.includes("privilege") || text.includes("admin")) {
+                    categories["Privilege Escalation"]++
+                } else if (text.includes("public")) {
+                    categories["Public Exposure"]++
+                } else if (text.includes("data") || text.includes("sensitive")) {
+                    categories["Data Protection"]++
+                } else {
+                    categories["Other"]++
+                }
+            })
+
+            let catLabels = Object.keys(categories)
+            let catValues = Object.values(categories)
+
+            Plotly.newPlot(
+                "issueCategoryChart",
+                [{
+                    x: catLabels,
+                    y: catValues,
+                    type: "bar",
+                    marker: {
+                        color: "#38bdf8"
+                    }
+                }],
+                {
+                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                    plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                    title: "Security Issue Categories"
+                },
+                { displaylogo: false }
+            )
+
+            /* ATTACK GRAPH - NETWORK STYLE */
+            let nodes = []
+            let edges = []
+
+            if (data.attack_paths && data.attack_paths.length > 0) {
+                data.attack_paths.forEach(path => {
+                    for (let i = 0; i < path.length; i++) {
+                        if (!nodes.includes(path[i])) {
+                            nodes.push(path[i])
+                        }
+                        if (i < path.length - 1) {
+                            edges.push({
+                                from: path[i],
+                                to: path[i + 1]
+                            })
+                        }
+                    }
+                })
+            } else {
+                nodes = [
+                    "Internet User",
+                    "IAM Role",
+                    "Privilege Escalation",
+                    "S3 Bucket",
+                    "Sensitive Data"
+                ]
+                edges = [
+                    { from: "Internet User", to: "IAM Role" },
+                    { from: "IAM Role", to: "Privilege Escalation" },
+                    { from: "Privilege Escalation", to: "S3 Bucket" },
+                    { from: "S3 Bucket", to: "Sensitive Data" }
+                ]
+            }
+
+            /* NETWORK LAYOUT POSITIONS */
+            let nodeX = []
+            let nodeY = []
+            nodes.forEach((n, i) => {
+                nodeX.push(Math.cos(i) * 3)
+                nodeY.push(Math.sin(i) * 3)
+            })
+
+            /* BUILD EDGE LINES */
+            let edgeX = []
+            let edgeY = []
+            edges.forEach(e => {
+                let x0 = nodeX[nodes.indexOf(e.from)]
+                let y0 = nodeY[nodes.indexOf(e.from)]
+                let x1 = nodeX[nodes.indexOf(e.to)]
+                let y1 = nodeY[nodes.indexOf(e.to)]
+                edgeX.push(x0, x1, null)
+                edgeY.push(y0, y1, null)
+            })
+
+            let edgeTrace = {
+                x: edgeX,
+                y: edgeY,
+                mode: "lines",
+                line: {
+                    width: 2,
+                    color: "#94a3b8"
+                },
+                hoverinfo: "none",
+                type: "scatter"
+            }
+
+            let nodeColors = nodes.map(node => {
+                if (node.includes("User")) return "#3b82f6"
+                if (node.includes("IAM")) return "#f97316"
+                if (node.includes("Privilege")) return "#ef4444"
+                if (node.includes("S3")) return "#eab308"
+                if (node.includes("Sensitive")) return "#a855f7"
+                return "#94a3b8"
+            })
+
+            let nodeTrace = {
+                x: nodeX,
+                y: nodeY,
+                text: nodes,
+                mode: "markers+text",
+                textposition: "top center",
+                marker: {
+                    size: 28,
+                    color: nodeColors
+                },
+                hoverinfo: "text",
+                type: "scatter"
+            }
+
+            Plotly.newPlot(
+                "attackGraph",
+                [edgeTrace, nodeTrace],
+                {
+                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                    plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                    xaxis: { visible: false },
+                    yaxis: { visible: false },
+                    showlegend: false
+                },
+                {
+                    displaylogo: false,
+                    modeBarButtonsToRemove: [
+                        "lasso2d",
+                        "select2d",
+                        "zoom2d",
+                        "autoScale2d",
+                        "toggleSpikelines",
+                        "orbitRotation",
+                        "tableRotation"
+                    ],
+                    modeBarButtonsToAdd: [
+                        "zoomIn2d",
+                        "zoomOut2d",
+                        "hoverClosestCartesian",
+                        "hoverCompareCartesian",
+                        "pan2d",
+                        "resetScale2d"
+                    ]
+                }
+            )
+
+            /* ATTACK PATH ANIMATION */
+            let step = 0
+            function animateAttack() {
+                if (step >= edges.length) return
+                let e = edges[step]
+                let x0 = nodeX[nodes.indexOf(e.from)]
+                let y0 = nodeY[nodes.indexOf(e.from)]
+                let x1 = nodeX[nodes.indexOf(e.to)]
+                let y1 = nodeY[nodes.indexOf(e.to)]
+                let attackTrace = {
+                    x: [x0, x1],
+                    y: [y0, y1],
+                    mode: "lines",
+                    line: {
+                        width: 6,
+                        color: "#ef4444"
+                    },
+                    type: "scatter"
+                }
+                Plotly.addTraces("attackGraph", attackTrace)
+                step++
+                setTimeout(animateAttack, 800)
+            }
+            setTimeout(animateAttack, 1000)
+
+            /* TOP RISKY CLOUD SERVICES */
+            if (data.service_risk) {
+                let services = Object.entries(data.service_risk)
+                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
+                let topServices = services.slice(0, 5)
+                let names = topServices.map(s => s[0] || "Other")
+                let scores = topServices.map(s => s[1].risk_score)
+
+                Plotly.newPlot(
+                    "serviceRiskChart",
+                    [{
+                        y: names,
+                        x: scores,
+                        type: "bar",
+                        orientation: "h",
+                        marker: {
+                            color: "#3b82f6"
+                        }
+                    }],
+                    {
+                        paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                        plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                        font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                        xaxis: { title: "Risk Score" },
+                        yaxis: { title: "Service" }
+                    },
+                    { displaylogo: false }
+                )
+            }
+
+            /* TOP VULNERABLE SERVICES - SORTED */
+            if (data.service_risk) {
+                let tableBody = document.querySelector("#serviceTable tbody")
+                tableBody.innerHTML = ""
+                let services = Object.entries(data.service_risk)
+                services.sort((a, b) => b[1].risk_score - a[1].risk_score)
+                services.forEach(([service, info]) => {
                     let row = `<tr>
-                <td>${issue.risk}</td>
-                <td>${issue.problem}</td>
-                <td>${issue.reason}</td>
-            </tr>`;
-                    tableBody.innerHTML += row;
-                });
+                    <td>${service || "Other"}</td>
+                    <td>${info.count}</td>
+                    <td>${info.risk_score}</td>
+                    </tr>`
+                    tableBody.innerHTML += row
+                })
             }
-
-            // Recommendations
-            if (data.recommendations) {
-                let recList = document.getElementById("recommendations");
-                recList.innerHTML = "";
-                data.recommendations.forEach(r => {
-                    let li = document.createElement("li");
-                    li.textContent = r;
-                    recList.appendChild(li);
-                });
-            }
-
-            // Risk Pie Chart
-            if (data.issues) {
-                let riskCounts = {};
-                data.issues.forEach(issue => {
-                    riskCounts[issue.risk] = (riskCounts[issue.risk] || 0) + 1;
-                });
-
-                Plotly.newPlot("riskChart", [{
-                    labels: Object.keys(riskCounts),
-                    values: Object.values(riskCounts),
-                    type: "pie"
-                }], {
-                    paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
-                    font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" }
-                }, { displaylogo: false });
-            }
-
-            // Continue with other charts similarly...
         }
 
-        // Update window.onload to load saved data
+        // Load saved theme and data on page load
         window.onload = function () {
             // ---------- THEME ----------
             let savedTheme = localStorage.getItem("theme");
@@ -1206,28 +984,6 @@
         window.addEventListener('beforeunload', function () {
             saveAnalysisData();
         });
-
-        // Update the upload function to save data after analysis
-        async function upload() {
-            // ... existing upload code ...
-
-            let response = await fetch("/analyze", {
-                method: "POST",
-                body: formData
-            });
-
-            let data = await response.json();
-            analysisData = data;
-
-            // Save to localStorage immediately after getting data
-            saveAnalysisData();
-
-            // ... rest of upload code ...
-        }
-
-
-
-
 
     </script>
 
