@@ -52,6 +52,44 @@
             box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
         }
 
+        /* ========== ENHANCED LIST GROUP STYLING ========== */
+        .list-group-item {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-bottom: 8px;
+            border-radius: 8px !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #1e293b;
+            color: white;
+        }
+
+        .list-group-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .badge {
+            font-size: 0.9rem;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        /* Risk level badges */
+        .badge.bg-danger {
+            background: #dc3545 !important;
+            color: white;
+        }
+
+        .badge.bg-warning {
+            background: #ffc107 !important;
+            color: #0f172a !important;
+        }
+
+        .badge.bg-secondary {
+            background: #6c757d !important;
+            color: white;
+        }
+
         /* LIGHT MODE STYLES - ENHANCED PROFESSIONAL LOOK */
         body.light-mode {
             background: #f0f2f5;
@@ -135,21 +173,32 @@
             border-top: 1px solid #e9eef2;
         }
 
+        /* ========== LIGHT MODE LIST GROUP STYLING ========== */
         body.light-mode .list-group-item {
             background: #ffffff;
             border: 1px solid #e9eef2;
-            color: #334155;
-            border-radius: 10px !important;
-            margin-bottom: 8px;
+            color: #1e293b;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
         }
 
+        body.light-mode .list-group-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateX(5px);
+        }
+
         body.light-mode .badge.bg-danger {
-            background: #ef4444 !important;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: 500;
+            background: #dc3545 !important;
+            color: white !important;
+        }
+
+        body.light-mode .badge.bg-warning {
+            background: #ffc107 !important;
+            color: #0f172a !important;
+        }
+
+        body.light-mode .badge.bg-secondary {
+            background: #6c757d !important;
+            color: white !important;
         }
 
         body.light-mode .form-control,
@@ -259,6 +308,20 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
         }
+
+        /* Table improvements */
+        #scanTable td:first-child {
+            font-weight: 600;
+        }
+
+        #scanTable tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+            transition: background 0.2s ease;
+        }
+
+        body.light-mode #scanTable tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
     </style>
 
 </head>
@@ -331,20 +394,35 @@
     </div>
 
 
-    <!-- Top Detected Security Issues -->
+    <!-- ========== TOP DETECTED SECURITY ISSUES - COLOR CODED ========== -->
     <h4 style="margin-top:30px;">Top Detected Security Issues</h4>
 
     <ul class="list-group mb-4">
-
         {% for vuln, count in top_vulnerabilities %}
-
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-            {{ vuln }}
-            <span class="badge bg-danger rounded-pill">{{ count }}</span>
+        <li class="list-group-item d-flex justify-content-between align-items-center" style="{% if '🔴' in vuln %}border-left: 4px solid #dc3545;
+                   {% elif '🟠' in vuln %}border-left: 4px solid #fd7e14;
+                   {% elif '🟡' in vuln %}border-left: 4px solid #ffc107;
+                   {% else %}border-left: 4px solid #6c757d;{% endif %}">
+            <span style="display: flex; align-items: center; gap: 8px;">
+                {% if '🔴' in vuln %}
+                <span style="font-size: 1.2rem;">🔴</span>
+                {% elif '🟠' in vuln %}
+                <span style="font-size: 1.2rem;">🟠</span>
+                {% elif '🟡' in vuln %}
+                <span style="font-size: 1.2rem;">🟡</span>
+                {% else %}
+                <span style="font-size: 1.2rem;">⚪</span>
+                {% endif %}
+                {{ vuln }}
+            </span>
+            <span class="badge {% if '🔴' in vuln %}bg-danger
+                             {% elif '🟠' in vuln %}bg-warning text-dark
+                             {% elif '🟡' in vuln %}bg-warning text-dark
+                             {% else %}bg-secondary{% endif %} rounded-pill">
+                {{ count }}
+            </span>
         </li>
-
         {% endfor %}
-
     </ul>
 
 
@@ -382,7 +460,14 @@
 
             <tr>
                 <td>{{ scan[0] }}</td>
-                <td>{{ scan[1] }}</td>
+                <td>
+                    <span class="badge {% if scan[1] == 'HIGH' %}bg-danger
+                                     {% elif scan[1] == 'MEDIUM' %}bg-warning text-dark
+                                     {% elif scan[1] == 'LOW' %}bg-success
+                                     {% else %}bg-secondary{% endif %}">
+                        {{ scan[1] }}
+                    </span>
+                </td>
                 <td>{{ scan[2] }}</td>
                 <td>{{ scan[3] }}</td>
             </tr>
@@ -402,7 +487,7 @@
             var rows = table.getElementsByTagName("tr");
 
             for (var i = 1; i < rows.length; i++) {
-                var riskLevel = rows[i].cells[1].innerText;
+                var riskLevel = rows[i].cells[1].innerText.trim();
                 if (filter === "ALL" || riskLevel === filter) {
                     rows[i].style.display = "";
                 } else {

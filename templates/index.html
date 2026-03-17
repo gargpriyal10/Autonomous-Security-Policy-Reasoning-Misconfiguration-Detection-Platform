@@ -347,6 +347,53 @@
                 margin: 5px;
             }
         }
+
+        /* Table improvements */
+        #serviceTable td:first-child {
+            font-weight: 600;
+        }
+
+        #serviceTable td:last-child {
+            font-weight: 500;
+            color: #ef4444;
+        }
+
+        body.light-mode #serviceTable td:last-child {
+            color: #dc2626;
+        }
+
+        #serviceTable tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+            transition: background 0.2s ease;
+        }
+
+        .service-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .service-badge.iam {
+            background: #f97316;
+            color: white;
+        }
+
+        .service-badge.s3 {
+            background: #eab308;
+            color: black;
+        }
+
+        .service-badge.ec2 {
+            background: #ec4899;
+            color: white;
+        }
+
+        .service-badge.lambda {
+            background: #8b5cf6;
+            color: white;
+        }
     </style>
 
 </head>
@@ -1102,20 +1149,33 @@
                 );
             }
 
-            // SERVICE RISK CHART
+            // SERVICE RISK CHART - IMPROVED VERSION
             if (data.service_risk) {
                 let services = Object.entries(data.service_risk);
 
+                console.log("Service risk for chart:", services);
+
                 // Filter out invalid service names
                 services = services.filter(([service, info]) => {
-                    return service && service !== "undefined" && service !== "other" && service !== "None" && service.trim() !== "";
+                    return service &&
+                        service !== "undefined" &&
+                        service !== "other" &&
+                        service !== "None" &&
+                        service.trim() !== "" &&
+                        info && typeof info === 'object';
                 });
 
                 if (services.length > 0) {
-                    services.sort((a, b) => b[1].risk_score - a[1].risk_score);
+                    // Sort by risk score
+                    services.sort((a, b) => {
+                        let riskA = a[1]?.risk_score || 0;
+                        let riskB = b[1]?.risk_score || 0;
+                        return riskB - riskA;
+                    });
+
                     let topServices = services.slice(0, 5);
-                    let names = topServices.map(s => s[0] || "Unknown");
-                    let scores = topServices.map(s => s[1].risk_score);
+                    let names = topServices.map(s => s[0]);
+                    let scores = topServices.map(s => parseFloat(s[1]?.risk_score || 0).toFixed(1));
 
                     Plotly.newPlot(
                         "serviceRiskChart",
@@ -1124,13 +1184,47 @@
                             x: scores,
                             type: "bar",
                             orientation: "h",
-                            marker: { color: "#3b82f6" }
+                            marker: {
+                                color: "#3b82f6",
+                                gradient: { type: "vertical" }
+                            },
+                            text: scores.map(s => s + ''),
+                            textposition: 'outside',
+                            hoverinfo: 'x+name'
                         }],
                         {
                             paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
                             plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
                             font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
-                            xaxis: { title: "Risk Score" },
+                            xaxis: {
+                                title: "Risk Score",
+                                range: [0, 100],
+                                gridcolor: document.body.classList.contains('light-mode') ? "#e2e8f0" : "#334155"
+                            },
+                            yaxis: {
+                                title: "Service",
+                                gridcolor: document.body.classList.contains('light-mode') ? "#e2e8f0" : "#334155"
+                            },
+                            margin: { l: 100, r: 30, t: 30, b: 40 }
+                        },
+                        { displaylogo: false }
+                    );
+                } else {
+                    // Show empty chart
+                    Plotly.newPlot(
+                        "serviceRiskChart",
+                        [{
+                            y: ["No Data"],
+                            x: [0],
+                            type: "bar",
+                            orientation: "h",
+                            marker: { color: "#94a3b8" }
+                        }],
+                        {
+                            paper_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                            plot_bgcolor: document.body.classList.contains('light-mode') ? "#ffffff" : "#1e293b",
+                            font: { color: document.body.classList.contains('light-mode') ? "#0f172a" : "white" },
+                            xaxis: { title: "Risk Score", range: [0, 100] },
                             yaxis: { title: "Service" }
                         },
                         { displaylogo: false }
@@ -1138,31 +1232,53 @@
                 }
             }
 
-            // SERVICE TABLE
+            // SERVICE TABLE - IMPROVED VERSION
             if (data.service_risk) {
                 let tableBody = document.querySelector("#serviceTable tbody");
                 tableBody.innerHTML = "";
 
+                console.log("Service risk data:", data.service_risk);
+
                 let services = Object.entries(data.service_risk);
 
-                // Filter out invalid service names
+                // Filter out invalid service names and ensure data structure
                 services = services.filter(([service, info]) => {
-                    return service && service !== "undefined" && service !== "other" && service !== "None" && service.trim() !== "";
+                    return service &&
+                        service !== "undefined" &&
+                        service !== "other" &&
+                        service !== "None" &&
+                        service.trim() !== "" &&
+                        info && typeof info === 'object';
                 });
 
                 if (services.length > 0) {
-                    services.sort((a, b) => b[1].risk_score - a[1].risk_score);
+                    // Sort by risk score (descending)
+                    services.sort((a, b) => {
+                        let riskA = a[1]?.risk_score || 0;
+                        let riskB = b[1]?.risk_score || 0;
+                        return riskB - riskA;
+                    });
+
                     services.forEach(([service, info]) => {
+                        // Ensure we have valid numbers
+                        let count = info?.count || 0;
+                        let riskScore = info?.risk_score || 0;
+
+                        // Format risk score to 1 decimal place
+                        riskScore = typeof riskScore === 'number' ? riskScore.toFixed(1) : riskScore;
+
                         let row = `<tr>
-                            <td>${service || "Unknown"}</td>
-                            <td>${info.count || 0}</td>
-                            <td>${info.risk_score || 0}</td>
-                        </tr>`;
+                <td><strong>${service}</strong></td>
+                <td>${count}</td>
+                <td>${riskScore}</td>
+            </tr>`;
                         tableBody.innerHTML += row;
                     });
                 } else {
-                    tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No service risk data available</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">No service risk data available</td></tr>';
                 }
+            } else {
+                document.querySelector("#serviceTable tbody").innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">No service risk data available</td></tr>';
             }
 
             // ========== CALL ATTACK GRAPH RENDERING ==========
