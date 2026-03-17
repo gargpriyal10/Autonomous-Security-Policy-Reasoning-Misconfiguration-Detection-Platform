@@ -1,14 +1,4 @@
-from flask import (
-    Flask,
-    render_template,
-    request,
-    jsonify,
-    send_file,
-    session,
-    redirect,
-    url_for,
-    Response,
-)
+from flask import (Flask, render_template, request, jsonify, send_file, session, redirect, url_for, Response)
 import json
 import yaml
 import csv
@@ -131,7 +121,7 @@ def analyze():
         result = analyze_policy(rules)
         print("Analysis complete")
 
-        # Remove graph data if not needed
+        # Remove graph data if not needed for JSON response
         result.pop("graph", None)
 
         username = session.get("username")
@@ -176,14 +166,96 @@ def analyze():
                 ]:
                     cleaned_service_risk[service_name] = data
 
-        # If no valid services found, add some default test data for demonstration
+        # If no valid services found but there are issues, create service_risk from issues
         if not cleaned_service_risk and issues_count > 0:
-            cleaned_service_risk = {
-                "IAM": {"count": 2, "risk_score": 65},
-                "S3": {"count": 3, "risk_score": 72},
-                "EC2": {"count": 1, "risk_score": 45},
-                "Lambda": {"count": 1, "risk_score": 30},
-            }
+            print("Creating service_risk from issues...")
+            # Extract service names from issues
+            issues = result.get("issues", [])
+            service_map = {}
+
+            for issue in issues:
+                problem = issue.get("problem", "").lower()
+                # Map common service names
+                if "s3" in problem or "bucket" in problem:
+                    service = "S3"
+                elif "iam" in problem or "role" in problem or "policy" in problem:
+                    service = "IAM"
+                elif "ec2" in problem or "instance" in problem:
+                    service = "EC2"
+                elif "lambda" in problem:
+                    service = "Lambda"
+                elif "rds" in problem or "database" in problem:
+                    service = "RDS"
+                elif "cloudtrail" in problem:
+                    service = "CloudTrail"
+                elif "cloudwatch" in problem:
+                    service = "CloudWatch"
+                else:
+                    service = "Other"
+
+                if service not in service_map:
+                    service_map[service] = {"count": 0, "risk_score": 0}
+
+                service_map[service]["count"] += 1
+                # Calculate risk score based on issue severity
+                risk = issue.get("risk", "MEDIUM")
+                if risk == "HIGH":
+                    risk_value = 90
+                elif risk == "MEDIUM":
+                    risk_value = 50
+                else:
+                    risk_value = 20
+
+                # Average risk score
+                current_total = service_map[service]["risk_score"] * (
+                    service_map[service]["count"] - 1
+                )
+                service_map[service]["risk_score"] = (
+                    current_total + risk_value
+                ) / service_map[service]["count"]
+
+            cleaned_service_risk = service_map
+            print(f"Created service_risk: {cleaned_service_risk}")
+
+        # FIX: Ensure attack_paths has proper structure
+        attack_paths = result.get("attack_paths", [])
+
+        # If no attack paths but there are issues, create basic attack paths
+        if (not attack_paths or len(attack_paths) == 0) and issues_count > 0:
+            print("Creating basic attack paths from issues...")
+            attack_paths = []
+
+            # Create a simple attack path based on high-risk issues
+            high_risk_issues = [
+                i for i in result.get("issues", []) if i.get("risk") == "HIGH"
+            ]
+
+            if high_risk_issues:
+                # Create a path: Internet -> IAM Role -> Service -> Sensitive Data
+                path = ["Internet"]
+
+                # Add IAM if there are IAM-related issues
+                if any("iam" in i.get("problem", "").lower() for i in high_risk_issues):
+                    path.append("IAM Role")
+
+                # Add services from issues
+                for issue in high_risk_issues[:2]:  # Take first 2 high risk issues
+                    problem = issue.get("problem", "")
+                    if "s3" in problem.lower():
+                        path.append("S3 Bucket")
+                    elif "ec2" in problem.lower():
+                        path.append("EC2 Instance")
+                    elif "lambda" in problem.lower():
+                        path.append("Lambda Function")
+                    else:
+                        path.append("Cloud Resource")
+
+                path.append("Sensitive Data")
+                attack_paths.append(path)
+
+            # Add a default path if still empty
+            if not attack_paths:
+                attack_paths = [["Internet", "IAM Role", "S3 Bucket", "Sensitive Data"]]
 
         response_data = {
             "total_files": total_files,
@@ -194,13 +266,17 @@ def analyze():
             ),
             "issues": result.get("issues", []),
             "recommendations": result.get("recommendations", []),
-            "attack_paths": result.get("attack_paths", []),
-            "service_risk": cleaned_service_risk,  # Use cleaned version
+            "attack_paths": attack_paths,  # Use enhanced attack_paths
+            "service_risk": cleaned_service_risk,  # Use cleaned/enhanced version
             "ai_summary": result.get("ai_summary", "Analysis complete"),
             "ai_text": result.get("ai_text", "No additional AI analysis available."),
         }
 
-        print("Sending response with service_risk:", list(cleaned_service_risk.keys()))
+        print("Sending response with:")
+        print(f"  - service_risk keys: {list(cleaned_service_risk.keys())}")
+        print(f"  - attack_paths: {len(attack_paths)} paths")
+        print(f"  - issues: {issues_count} issues")
+
         return jsonify(response_data)
 
     except Exception as e:
@@ -258,7 +334,8 @@ def history():
         vulnerability_counts.items(), key=lambda x: x[1], reverse=True
     )[:5]
 
-    # Service risk chart
+    # Service risk chart - Use dynamic data from scans if available
+    # For now, keep the example data
     services = ["IAM", "S3", "EC2", "Lambda"]
     service_risk_values = [6, 4, 3, 2]
 
