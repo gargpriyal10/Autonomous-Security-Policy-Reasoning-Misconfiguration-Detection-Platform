@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Flask
+instance/
+.webassets-cache
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# AWS credentials
+.aws/
+credentials
+config
+*.pem
+*.key
+*.crt
+*secret*
+*access_key*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Third-party libraries
+lib/
+vendor/
+node_modules/
+
+# Reports
+*.pdf
+*.csv
+!cloud_security_report.pdf

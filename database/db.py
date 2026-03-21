@@ -60,12 +60,8 @@ def get_scan_history(username):
     return rows
 
 
-import sqlite3
-
-
 def create_users_table():
-
-    conn = sqlite3.connect("security_scans.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute(

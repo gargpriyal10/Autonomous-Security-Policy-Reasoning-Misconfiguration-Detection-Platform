@@ -17,6 +17,9 @@ from plotly.offline import plot
 import plotly.graph_objects as go
 import traceback
 import os
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_limiter.errors import RateLimitExceeded
 
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
@@ -24,16 +27,44 @@ from database.db import save_scan, get_scan_history
 from database.db import create_users_table, init_db
 from auth.auth import auth
 from utils.report_generator import generate_report
+from utils.input_validator import (
+    validate_filename,
+    sanitize_input,
+    validate_policy_rule,
+    validate_file_content,
+)
 
 
 app = Flask(__name__)
 app.secret_key = "cloud_security_policy_platform"
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 
+# Initialize rate limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
+
 app.register_blueprint(auth)
 
 create_users_table()
 init_db()
+
+
+@app.errorhandler(RateLimitExceeded)
+def handle_rate_limit_exceeded(e):
+    return (
+        jsonify(
+            {
+                "error": "Rate limit exceeded",
+                "message": "You have exceeded the rate limit. Please wait a moment before trying again.",
+                "limit": "10 analyses per minute",
+            }
+        ),
+        429,
+    )
 
 
 @app.route("/")
@@ -44,6 +75,7 @@ def home():
 
 
 @app.route("/analyze", methods=["POST"])
+@limiter.limit("10 per minute")
 def analyze():
     try:
         print("=" * 50)
@@ -69,8 +101,23 @@ def analyze():
 
         for uploaded_file in uploaded_files:
             filename = uploaded_file.filename.lower()
+
+            # Validate filename
+            if not validate_filename(filename):
+                print(f"Invalid filename: {filename}")
+                continue
+
+            # Read and validate content
+            content = uploaded_file.read()
+            if not validate_file_content(content, filename):
+                print(f"Invalid file content: {filename}")
+                continue
+
             print(f"Processing file: {filename}")
             file_details.append(filename)
+
+            # Reset file pointer for reading
+            uploaded_file.seek(0)
 
             try:
                 if filename.endswith(".json"):
@@ -326,6 +373,7 @@ def analyze():
 
 
 @app.route("/download_report", methods=["POST"])
+@limiter.limit("20 per minute")
 def download_report():
     try:
         if "user_id" not in session:
@@ -358,6 +406,10 @@ def history():
 
     username = session.get("username")
     scans = get_scan_history(username)
+
+    print(f"Username: {username}")
+    print(f"Number of Scans: {len(scans)}")
+    print(f"Scans data: {scans[:5]}")
 
     # ========== DYNAMIC VULNERABILITY CATEGORIES ==========
     vulnerability_counts = {}
@@ -421,29 +473,33 @@ def history():
 
     print(f"Top vulnerabilities: {top_vulnerabilities}")  # Debug log
 
-    # Service risk chart - Use dynamic data from scans if available
+    # ========== SERVICE RISK CHART ==========
     services = ["IAM", "S3", "EC2", "Lambda"]
     service_risk_values = [6, 4, 3, 2]
 
-    service_fig = go.Figure()
-    service_fig.add_trace(
-        go.Bar(x=services, y=service_risk_values, marker_color="orange")
-    )
-    service_fig.update_layout(
-        title="Top Vulnerable Services",
-        xaxis_title="Cloud Service",
-        yaxis_title="Risk Count",
-        template="plotly_dark",
-        height=350,
-        margin=dict(l=20, r=20, t=40, b=20),
-    )
+    try:
+        service_fig = go.Figure()
+        service_fig.add_trace(
+            go.Bar(x=services, y=service_risk_values, marker_color="orange")
+        )
+        service_fig.update_layout(
+            title="Top Vulnerable Services",
+            xaxis_title="Cloud Service",
+            yaxis_title="Risk Count",
+            template="plotly_dark",
+            height=350,
+            margin=dict(l=20, r=20, t=40, b=20),
+        )
 
-    service_chart = plot(
-        service_fig,
-        output_type="div",
-        include_plotlyjs=False,
-        config={"displaylogo": False, "displayModeBar": False},
-    )
+        service_chart = plot(
+            service_fig,
+            output_type="div",
+            include_plotlyjs=False,
+            config={"displaylogo": False, "displayModeBar": False},
+        )
+    except Exception as e:
+        print(f"Error creating service chart: {e}")
+        service_chart = "<p>Error loading chart</p>"
 
     # Calculate stats
     total_scans = len(scans)
@@ -456,27 +512,33 @@ def history():
     risk_scores = [scan[0] for scan in scans]
     timestamps = [scan[3] for scan in scans]
 
-    # Risk trend chart
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(x=timestamps, y=risk_scores, mode="lines+markers", name="Risk Score")
-    )
-    fig.update_layout(
-        title="Risk Score Trend",
-        height=420,
-        xaxis_title="Time",
-        yaxis_title="Risk Score",
-        template="plotly_dark",
-        margin=dict(l=20, r=20, t=40, b=20),
-        xaxis_tickangle=-45,
-    )
+    # ========== RISK TREND CHART ==========
+    try:
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=timestamps, y=risk_scores, mode="lines+markers", name="Risk Score"
+            )
+        )
+        fig.update_layout(
+            title="Risk Score Trend",
+            height=420,
+            xaxis_title="Time",
+            yaxis_title="Risk Score",
+            template="plotly_dark",
+            margin=dict(l=20, r=20, t=40, b=20),
+            xaxis_tickangle=-45,
+        )
 
-    chart = plot(
-        fig,
-        output_type="div",
-        include_plotlyjs=False,
-        config={"displaylogo": False, "displayModeBar": False},
-    )
+        chart = plot(
+            fig,
+            output_type="div",
+            include_plotlyjs=False,
+            config={"displaylogo": False, "displayModeBar": False},
+        )
+    except Exception as e:
+        print(f"Error creating trend chart: {e}")
+        chart = "<p>Error loading chart</p>"
 
     return render_template(
         "history.html",
@@ -509,6 +571,29 @@ def export_csv():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment;filename=scan_history.csv"},
     )
+
+
+# ========== SECURITY HEADERS ==========
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains"
+    )
+    # Updated CSP to allow Plotly and Bootstrap
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.plot.ly https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://cdn.jsdelivr.net;"
+    )
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    return response
 
 
 # Error handlers

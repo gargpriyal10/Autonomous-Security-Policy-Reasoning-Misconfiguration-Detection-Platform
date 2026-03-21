@@ -379,7 +379,7 @@
     <!-- Risk Trend Chart -->
     <h4 style="margin-top:30px;">Risk Score Trend</h4>
 
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
     <div style="margin-bottom:40px;" class="chart-container">
         {{ chart | safe }}
@@ -409,7 +409,7 @@
                 {% elif '🟠' in vuln %}
                 <span style="font-size: 1.2rem;">🟠</span>
                 {% elif '🟡' in vuln %}
-                <span style="font-size: 1.2rem;">🟡</span>
+                <span style="font-size: 1.2rem;">🟡</span>ō
                 {% else %}
                 <span style="font-size: 1.2rem;">⚪</span>
                 {% endif %}

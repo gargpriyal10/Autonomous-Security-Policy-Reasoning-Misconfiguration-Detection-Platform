@@ -686,6 +686,16 @@
 
                 console.log("Response status:", response.status);
 
+                // Handle rate limit error (429)
+                if (response.status === 429) {
+                    const errorData = await response.json();
+                    alert("⚠️ Rate Limit Exceeded!\n\nYou have analyzed too many files. Please wait a moment before trying again.\n\n" + (errorData.message || "Limit: 10 analyses per minute"));
+                    document.getElementById("loading").style.display = "none";
+                    document.getElementById("analyzeBtn").disabled = false;
+                    return;
+                }
+
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
@@ -709,7 +719,13 @@
                 console.error("Error in upload:", error);
                 document.getElementById("loading").style.display = "none";
                 document.getElementById("analyzeBtn").disabled = false;
-                alert("Error analyzing policy: " + error.message);
+
+                // Check if it's a rate limit error
+                if (error.message.includes("429")) {
+                    alert("⚠️ Too many requests! Please wait a minute before analyzing again.");
+                } else {
+                    alert("Error analyzing policy: " + error.message);
+                }
             }
         }
 
