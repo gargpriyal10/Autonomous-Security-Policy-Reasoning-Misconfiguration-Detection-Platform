@@ -341,6 +341,12 @@ def analyze():
             if not attack_paths:
                 attack_paths = [["Internet", "IAM Role", "S3 Bucket", "Sensitive Data"]]
 
+        risk_score = result.get("risk_score", 0)
+        risk_score = min(risk_score, 100) 
+
+        security_score = 100 - risk_score
+        security_score = max(0, security_score)
+
         response_data = {
             "total_files": total_files,
             "files_analyzed": file_details,
@@ -354,6 +360,14 @@ def analyze():
             "service_risk": cleaned_service_risk,
             "ai_summary": result.get("ai_summary", "Analysis complete"),
             "ai_text": result.get("ai_text", "No additional AI analysis available."),
+            # NEW AI FIELDS
+            "risk_assessment": result.get(
+                "risk_assessment", "Risk assessment not available"
+            ),
+            "priority_actions": result.get(
+                "priority_actions",
+                ["Review all security issues", "Implement least privilege principle"],
+            ),
         }
 
         print("Sending response with:")
