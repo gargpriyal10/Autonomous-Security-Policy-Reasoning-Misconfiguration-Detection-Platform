@@ -239,34 +239,56 @@ def download_report():
         logging.error(f"Report error: {str(e)}")
         return jsonify({"error": "Report generation failed"}), 500
 
-
 @app.route("/history")
 def history():
     try:
         logging.info("History route called")
 
-        # Handle session safely
+        # Session check
         if "user_id" not in session:
-            logging.warning("No session found, using demo user")
-            username = "demo_user"
-        else:
-            username = session.get("username")
+            return redirect(url_for("auth.login"))
 
+        username = session.get("username")
         scans = get_scan_history(username)
 
-        # If no data
-        if not scans:
-            return "<h2>No scan history found. Run analysis first.</h2>"
+        # Stats
+        total_scans = len(scans)
+        high_risk = len([s for s in scans if s[1] == "HIGH"])
+        medium_risk = len([s for s in scans if s[1] == "MEDIUM"])
+        low_risk = len([s for s in scans if s[1] == "LOW"])
 
-        # Simple HTML output (safe debug view)
-        html = "<h1>Scan History</h1><ul>"
+        # Reverse latest first
+        scans = list(reversed(scans))
 
-        for scan in scans:
-            html += f"<li>Risk: {scan[0]} | Level: {scan[1]} | Issues: {scan[2]} | Time: {scan[3]}</li>"
+        # Charts
+        risk_scores = [scan[0] for scan in scans]
+        timestamps = [scan[3] for scan in scans]
 
-        html += "</ul>"
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=timestamps, y=risk_scores, mode="lines+markers"))
+        fig.update_layout(title="Risk Trend", template="plotly_dark")
 
-        return html
+        chart = plot(fig, output_type="div", include_plotlyjs=False)
+
+        # Dummy service chart
+        service_fig = go.Figure()
+        service_fig.add_trace(go.Bar(x=["IAM","S3","EC2"], y=[5,3,2]))
+        service_chart = plot(service_fig, output_type="div", include_plotlyjs=False)
+
+        top_vulnerabilities = [("Security Issues", sum([s[2] for s in scans]))]
+
+        # ✅ IMPORTANT: render_template
+        return render_template(
+            "history.html",
+            scans=scans,
+            chart=chart,
+            service_chart=service_chart,
+            total_scans=total_scans,
+            high_risk=high_risk,
+            medium_risk=medium_risk,
+            low_risk=low_risk,
+            top_vulnerabilities=top_vulnerabilities,
+        )
 
     except Exception as e:
         logging.error(f"History error: {str(e)}")
