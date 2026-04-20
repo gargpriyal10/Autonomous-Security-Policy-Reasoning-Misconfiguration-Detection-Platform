@@ -240,6 +240,38 @@ def download_report():
         return jsonify({"error": "Report generation failed"}), 500
 
 
+@app.route("/history")
+def history():
+    try:
+        logging.info("History route called")
+
+        # Handle session safely
+        if "user_id" not in session:
+            logging.warning("No session found, using demo user")
+            username = "demo_user"
+        else:
+            username = session.get("username")
+
+        scans = get_scan_history(username)
+
+        # If no data
+        if not scans:
+            return "<h2>No scan history found. Run analysis first.</h2>"
+
+        # Simple HTML output (safe debug view)
+        html = "<h1>Scan History</h1><ul>"
+
+        for scan in scans:
+            html += f"<li>Risk: {scan[0]} | Level: {scan[1]} | Issues: {scan[2]} | Time: {scan[3]}</li>"
+
+        html += "</ul>"
+
+        return html
+
+    except Exception as e:
+        logging.error(f"History error: {str(e)}")
+        return f"<h2>Error loading history: {str(e)}</h2>"
+
 # SECURITY HEADERS
 @app.after_request
 def add_security_headers(response):
