@@ -1,46 +1,80 @@
-# Autonomous Security Policy Reasoning & Misconfiguration Detection Platform
+# 🔐 Autonomous Security Policy Reasoning & Misconfiguration Detection Platform
 
-## Overview
+## 📌 Overview
 
-The **Autonomous Security Policy Reasoning Platform** is a cloud security analysis system designed to detect **IAM misconfigurations, privilege escalation risks, and policy conflicts** in cloud policies.
+The **Autonomous Security Policy Reasoning Platform** is an intelligent cloud security analysis system designed to detect:
 
-The platform analyzes uploaded policy files and generates **security insights, risk scores, recommendations, attack path simulations, and downloadable security reports**.
+* IAM misconfigurations
+* Privilege escalation risks
+* Policy conflicts
+* Over-permissive access controls
 
-The system is implemented as a **full-stack web application using Flask**, allowing users to upload policies and interactively view security analytics through a dashboard.
+The platform analyzes uploaded cloud policy files and generates:
 
----
+* 📊 Risk Scores
+* 🤖 AI-based Security Insights
+* 🔍 Misconfiguration Detection
+* 🛡️ Security Recommendations
+* 🧭 Attack Path Simulation
+* 📄 Downloadable PDF Reports
 
-## Features
-
-* Detects **IAM misconfigurations** such as wildcard permissions and excessive access.
-* Identifies **policy conflicts** between Allow and Deny rules.
-* Detects **privilege escalation risks** in cloud IAM policies.
-* Generates **AI-based explanations and security summaries**.
-* Simulates **attack paths using graph modeling**.
-* Provides **service-level risk analytics** for cloud resources.
-* Maintains **scan history analytics** for security monitoring.
-* Provides **interactive security dashboards and visualizations**.
-* Export analysis results as **JSON**.
-* Download **full security reports as PDF**.
-* Supports **multiple policy formats**:
-
-  * JSON
-  * YAML
-  * TXT
-  * CSV
+It is implemented as a **full-stack Flask web application** with an interactive dashboard.
 
 ---
 
-## Technology Stack
+## 🚀 Key Features
+
+### 🔍 Security Analysis
+
+* Detects wildcard (`*`) permissions
+* Identifies excessive IAM access
+* Detects public exposure risks (S3, EC2, etc.)
+* Finds Allow/Deny policy conflicts
+
+### 🤖 AI-Powered Insights
+
+* AI-based explanations of issues
+* Smart security summaries
+* Priority-based action recommendations
+
+### 📊 Advanced Analytics
+
+* Risk Score & Security Score calculation
+* Service-wise risk analytics
+* Scan history tracking
+
+### 🧭 Attack Simulation
+
+* Graph-based attack path generation
+* Visualization of potential attack paths
+
+### 📄 Reporting
+
+* Downloadable **PDF Security Reports**
+* Export results as **JSON**
+* Structured issue & recommendation reporting
+
+### 📂 Multi-format Support
+
+* JSON
+* YAML
+* CSV
+* TXT
+
+---
+
+## 🛠️ Technology Stack
 
 ### Backend
 
 * Python
 * Flask
+* Flask-Limiter (Rate Limiting)
 
 ### Frontend
 
 * HTML
+* CSS
 * JavaScript
 
 ### Data Processing
@@ -54,15 +88,18 @@ The system is implemented as a **full-stack web application using Flask**, allow
 ### Graph Analysis
 
 * NetworkX
-* PyVis
 
 ### Report Generation
 
 * ReportLab
 
+### Database
+
+* SQLite
+
 ---
 
-## Project Architecture
+## 🏗️ Project Architecture
 
 ```
 Frontend (HTML + JavaScript)
@@ -78,7 +115,7 @@ SQLite Database
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 autonomous-security-policy-analyzer
@@ -86,71 +123,35 @@ autonomous-security-policy-analyzer
 ├── app.py                # Flask backend server
 │
 ├── core/                 # Policy analysis engine
-├── detector/             # Misconfiguration detection logic
-├── parser/               # Policy normalization and parsing
+├── detector/             # Misconfiguration detection
+├── parser/               # Policy parsing
 ├── graph/                # Attack path simulation
-├── database/             # Scan history storage
-├── utils/                # Utility modules (report generation)
+├── database/             # SQLite DB
+├── utils/                # Report generation & helpers
 │
-├── templates/            # HTML frontend pages
-│   └── index.html
-│
-├── static/               # CSS and JavaScript files
-│
+├── templates/            # HTML frontend
+├── static/               # CSS & JS
 ├── data/                 # Sample policies
 │
-└── requirements.txt
+├── .env                  # Environment variables 
+├── requirements.txt      # Dependencies
+└── README.md
 ```
 
 ---
 
-## How It Works
+## ⚙️ Setup & Installation
 
-1. User uploads a cloud policy file.
-2. The system parses the policy and normalizes the rules.
-3. The **security engine analyzes the policy** for:
-
-   * misconfigurations
-   * privilege escalation
-   * policy conflicts
-4. A **risk score and security posture score** are calculated.
-5. Attack paths are simulated using graph analysis.
-6. Results are displayed on the dashboard with charts and tables.
-7. Users can export results as **JSON** or download a **PDF security report**.
-
----
-
-## Example Output
-
-The system generates:
-
-* Risk Score
-* Security Score
-* Detected Security Issues
-* Security Recommendations
-* Attack Path Visualization
-* Cloud Service Risk Analytics
-* AI Security Explanation
-* Downloadable **PDF Security Report**
-* Exportable **JSON Analysis Report**
-
----
-
-## Installation
-
-Clone the repository:
+### 1️⃣ Clone Repository
 
 ```
 git clone https://github.com/gargpriyal10/Autonomous-Security-Policy-Reasoning-Misconfiguration-Detection-Platform.git
-```
-
-Move to the project directory:
-
-```
 cd Autonomous-Security-Policy-Reasoning-Misconfiguration-Detection-Platform
 ```
 
-Install dependencies:
+---
+
+### 2️⃣ Install Dependencies
 
 ```
 pip install -r requirements.txt
@@ -158,46 +159,101 @@ pip install -r requirements.txt
 
 ---
 
-## Running the Application
+### 3️⃣ Setup Environment Variables
 
-Start the Flask server:
+Create a `.env` file:
+
+```
+SECRET_KEY=your_secret_key_here
+```
+
+---
+
+### 4️⃣ Run Application
 
 ```
 python app.py
 ```
 
-Open the application in your browser:
+Open in browser:
 
 ```
 http://127.0.0.1:5000
 ```
 
-Upload a policy file to begin analysis.
+---
+
+## 🔐 Security Enhancements
+
+* Rate Limiting using Flask-Limiter
+* Secure HTTP Headers (CSP, XSS Protection, HSTS)
+* Input Validation & File Sanitization
+* Session-based Authentication
+* Environment Variable Protection (.env)
 
 ---
 
-## Future Improvements
+## 📊 How It Works
 
-* Heatmap visualization for service risk exposure
+1. User uploads a policy file
+2. Policy is parsed & normalized
+3. System detects:
+
+   * Misconfigurations
+   * Policy conflicts
+   * Privilege escalation risks
+4. Risk Score is calculated
+5. Attack paths are simulated
+6. AI generates insights
+7. Results displayed on dashboard
+8. User downloads PDF report
+
+---
+
+## 📌 Example Output
+
+* Risk Score
+* Security Score
+* Detected Issues
+* Recommendations
+* Attack Paths
+* Service Risk Analytics
+* AI Explanation
+* PDF Report
+
+---
+
+## 📈 Recent Improvements
+
+* Improved risk scoring using weighted severity
+* Duplicate issue removal
+* Enhanced misconfiguration detection
+* Better AI-based recommendations
+* Improved PDF report formatting
+* Service-level risk analytics enhancement
+* Attack path simulation improvements
+
+---
+
+## 🔮 Future Scope
+
+* Heatmap visualization
+* Cloud integration (AWS, GCP, Azure)
 * Automated remediation suggestions
-* Integration with real cloud environments
-* User authentication and multi-user support
-* Real-time cloud policy monitoring
+* Multi-user dashboards
+* Real-time monitoring
 
 ---
 
-## Author
+## 👨‍💻 Authors
 
-**Priyal Garg**
-**Shrishti Agarwal**
-Computer Science Engineering Student
+* **Priyal Garg**
+* **Shrishti Agarwal**
+
+Computer Science Engineering Students
 
 ---
 
-## Repository
+## 🔗 GitHub Repository
 
-GitHub Repository:
-
-```
 https://github.com/gargpriyal10/Autonomous-Security-Policy-Reasoning-Misconfiguration-Detection-Platform
-```
