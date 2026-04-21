@@ -1,78 +1,103 @@
 import sqlite3
+import logging
 
 DB_NAME = "security_scans.db"
 
 
-def init_db():
+def get_connection():
+    """Create a secure DB connection"""
     conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    conn.row_factory = sqlite3.Row  # Better data handling
+    return conn
 
-    cursor.execute(
+
+def init_db():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT,
+                risk_score INTEGER,
+                risk_level TEXT,
+                issues_count INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
         """
-        CREATE TABLE IF NOT EXISTS scans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT,
-            risk_score INTEGER,
-            risk_level TEXT,
-            issues_count INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    """
-    )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        logging.error(f"DB init error: {str(e)}")
+    finally:
+        conn.close()
 
 
 def save_scan(username, risk_score, risk_level, issues_count):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        INSERT INTO scans (username, risk_score, risk_level, issues_count)
-        VALUES (?, ?, ?, ?)
-    """,
-        (username, risk_score, risk_level, issues_count),
-    )
+        cursor.execute(
+            """
+            INSERT INTO scans (username, risk_score, risk_level, issues_count)
+            VALUES (?, ?, ?, ?)
+        """,
+            (username, risk_score, risk_level, issues_count),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        logging.error(f"Error saving scan: {str(e)}")
+    finally:
+        conn.close()
 
 
 def get_scan_history(username):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT risk_score, risk_level, issues_count, timestamp
-        FROM scans
-        WHERE username = ?
-        ORDER BY timestamp DESC
-    """,
-        (username,),
-    )
+        cursor.execute(
+            """
+            SELECT risk_score, risk_level, issues_count, timestamp
+            FROM scans
+            WHERE username = ?
+            ORDER BY timestamp DESC
+        """,
+            (username,),
+        )
 
-    rows = cursor.fetchall()
-    conn.close()
+        rows = cursor.fetchall()
+        return [tuple(row) for row in rows]
 
-    return rows
+    except Exception as e:
+        logging.error(f"Error fetching history: {str(e)}")
+        return []
+    finally:
+        conn.close()
 
 
 def create_users_table():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute(
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE,
+                password TEXT
+            )
         """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
         )
-    """
-    )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        logging.error(f"Error creating users table: {str(e)}")
+    finally:
+        conn.close()
