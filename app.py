@@ -7,7 +7,6 @@ from flask import (
     session,
     redirect,
     url_for,
-    Response,
 )
 import json
 import yaml
@@ -18,11 +17,13 @@ import plotly.graph_objects as go
 import traceback
 import os
 import logging
+import uuid
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
 from flask_cors import CORS
 from dotenv import load_dotenv
+from flask_wtf.csrf import CSRFProtect
 
 from parser.policy_parser import normalize_policy
 from core.policy_engine import analyze_policy
@@ -33,7 +34,6 @@ from utils.report_generator import generate_report
 from utils.input_validator import (
     validate_filename,
     sanitize_input,
-    validate_policy_rule,
     validate_file_content,
 )
 
@@ -48,26 +48,37 @@ logging.basicConfig(
 
 app = Flask(__name__)
 
-# 🔴 FIX 1: Secure secret key
-app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
+# ✅ Secure SECRET KEY
+secret_key = os.environ.get("SECRET_KEY")
+if not secret_key:
+    raise ValueError("SECRET_KEY not set in environment")
+app.secret_key = secret_key
 
-# 🔴 FIX 2: Session security
+# ✅ Session security
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_SAMESITE="Lax"
+    SESSION_COOKIE_SAMESITE="Lax",
+    PERMANENT_SESSION_LIFETIME=1800  # 30 min
 )
 
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-# 🔴 FIX 3: Enable CORS
-CORS(app, resources={r"/*": {"origins": "*"}})
+# ✅ Secure CORS
+CORS(
+    app,
+    resources={r"/*": {"origins": ["http://localhost:5000"]}},
+    supports_credentials=True
+)
+
+# ✅ CSRF Protection
+csrf = CSRFProtect(app)
 
 # Rate limiter
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["100 per day", "20 per hour"],
     storage_uri="memory://",
 )
 
@@ -76,19 +87,19 @@ app.register_blueprint(auth)
 create_users_table()
 init_db()
 
+# Allowed file types
+ALLOWED_EXTENSIONS = {"json", "yaml", "yml", "csv", "txt"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1] in ALLOWED_EXTENSIONS
+
 
 @app.errorhandler(RateLimitExceeded)
 def handle_rate_limit_exceeded(e):
-    return (
-        jsonify(
-            {
-                "error": "Rate limit exceeded",
-                "message": "Too many requests. Please wait.",
-                "limit": "10 requests per minute",
-            }
-        ),
-        429,
-    )
+    return jsonify({
+        "error": "Rate limit exceeded",
+        "message": "Too many requests. Please wait."
+    }), 429
 
 
 @app.route("/")
@@ -102,10 +113,7 @@ def home():
 @limiter.limit("10 per minute")
 def analyze():
     try:
-        logging.info("Analyze route called")
-
         if "user_id" not in session:
-            logging.error("Unauthorized access")
             return jsonify({"error": "Unauthorized access"}), 401
 
         uploaded_files = request.files.getlist("files")
@@ -121,10 +129,17 @@ def analyze():
         for uploaded_file in uploaded_files:
             filename = sanitize_input(uploaded_file.filename.lower())
 
+            if not allowed_file(filename):
+                continue
+
             if not validate_filename(filename):
                 continue
 
             content = uploaded_file.read()
+
+            # ✅ File size limit (2MB per file)
+            if len(content) > 2 * 1024 * 1024:
+                continue
 
             if not validate_file_content(content, filename):
                 continue
@@ -137,7 +152,7 @@ def analyze():
                     if "Statement" in data:
                         rules.extend(normalize_policy(data))
 
-                elif filename.endswith(".yaml") or filename.endswith(".yml"):
+                elif filename.endswith((".yaml", ".yml")):
                     data = yaml.safe_load(content)
                     if data and "Statement" in data:
                         rules.extend(normalize_policy(data))
@@ -147,24 +162,21 @@ def analyze():
                     reader = csv.DictReader(decoded)
                     for row in reader:
                         row = {k: sanitize_input(v) for k, v in row.items()}
-                        rules.append(
-                            {
-                                "Effect": row.get("Effect", "Allow"),
-                                "Action": row.get("Action", "*"),
-                                "Resource": row.get("Resource", "*"),
-                            }
-                        )
+                        rules.append({
+                            "Effect": row.get("Effect", "Allow"),
+                            "Action": row.get("Action", "*"),
+                            "Resource": row.get("Resource", "*"),
+                        })
 
                 elif filename.endswith(".txt"):
                     text = content.decode("utf-8")
                     if "*" in text:
-                        rules.append(
-                            {
-                                "Effect": "Allow",
-                                "Action": "*",
-                                "Resource": "*",
-                            }
-                        )
+                        rules.append({
+                            "Effect": "Allow",
+                            "Action": "*",
+                            "Resource": "*",
+                        })
+
             except Exception as e:
                 logging.error(f"Error processing file {filename}: {str(e)}")
                 continue
@@ -179,12 +191,11 @@ def analyze():
         risk_score = result.get("risk_score", 0)
         issues_count = len(result.get("issues", []))
 
-        if risk_score <= 30:
-            risk_level = "LOW"
-        elif risk_score <= 70:
-            risk_level = "MEDIUM"
-        else:
-            risk_level = "HIGH"
+        risk_level = (
+            "LOW" if risk_score <= 30 else
+            "MEDIUM" if risk_score <= 70 else
+            "HIGH"
+        )
 
         if username:
             try:
@@ -192,7 +203,7 @@ def analyze():
             except Exception as e:
                 logging.error(f"DB save error: {str(e)}")
 
-        response_data = {
+        return jsonify({
             "total_files": total_files,
             "files_analyzed": file_details,
             "risk_score": risk_score,
@@ -203,13 +214,11 @@ def analyze():
             "service_risk": result.get("service_risk", {}),
             "ai_summary": result.get("ai_summary", ""),
             "ai_text": result.get("ai_text", ""),
-        }
+        })
 
-        return jsonify(response_data)
-
-    except Exception as e:
+    except Exception:
         logging.error(traceback.format_exc())
-        return jsonify({"error": "Server error"}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/download_report", methods=["POST"])
@@ -220,12 +229,13 @@ def download_report():
             return jsonify({"error": "Unauthorized access"}), 401
 
         data = request.get_json()
-
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        # 🔴 FIX: unique file
-        filepath = f"report_{session.get('user_id')}.pdf"
+        # ✅ Safe unique file
+        os.makedirs("reports", exist_ok=True)
+        filename = f"{uuid.uuid4().hex}.pdf"
+        filepath = os.path.join("reports", filename)
 
         generate_report(data, filepath)
 
@@ -235,32 +245,23 @@ def download_report():
             as_attachment=True,
             download_name="cloud_security_report.pdf",
         )
+
     except Exception as e:
         logging.error(f"Report error: {str(e)}")
         return jsonify({"error": "Report generation failed"}), 500
 
+
 @app.route("/history")
 def history():
     try:
-        logging.info("History route called")
-
-        # Session check
         if "user_id" not in session:
             return redirect(url_for("auth.login"))
 
         username = session.get("username")
         scans = get_scan_history(username)
 
-        # Stats
-        total_scans = len(scans)
-        high_risk = len([s for s in scans if s[1] == "HIGH"])
-        medium_risk = len([s for s in scans if s[1] == "MEDIUM"])
-        low_risk = len([s for s in scans if s[1] == "LOW"])
-
-        # Reverse latest first
         scans = list(reversed(scans))
 
-        # Charts
         risk_scores = [scan[0] for scan in scans]
         timestamps = [scan[3] for scan in scans]
 
@@ -270,38 +271,26 @@ def history():
 
         chart = plot(fig, output_type="div", include_plotlyjs=False)
 
-        # Dummy service chart
-        service_fig = go.Figure()
-        service_fig.add_trace(go.Bar(x=["IAM","S3","EC2"], y=[5,3,2]))
-        service_chart = plot(service_fig, output_type="div", include_plotlyjs=False)
-
-        top_vulnerabilities = [("Security Issues", sum([s[2] for s in scans]))]
-
-        # ✅ IMPORTANT: render_template
         return render_template(
             "history.html",
             scans=scans,
             chart=chart,
-            service_chart=service_chart,
-            total_scans=total_scans,
-            high_risk=high_risk,
-            medium_risk=medium_risk,
-            low_risk=low_risk,
-            top_vulnerabilities=top_vulnerabilities,
         )
 
     except Exception as e:
         logging.error(f"History error: {str(e)}")
-        return f"<h2>Error loading history: {str(e)}</h2>"
+        return "<h2>Error loading history</h2>"
 
-# SECURITY HEADERS
+
+# ✅ Security headers
 @app.after_request
 def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = (
-        "max-age=31536000; includeSubDomains"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self' https://cdn.plot.ly; style-src 'self' 'unsafe-inline';"
     )
     return response
 
