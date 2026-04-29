@@ -7,7 +7,7 @@ __pycache__/
 env/
 venv/
 ENV/
-.venv
+.venv/
 
 # Flask
 instance/
@@ -46,7 +46,9 @@ lib/
 vendor/
 node_modules/
 
-# Reports
+# Reports (IMPORTANT)
+reports/
 *.pdf
-*.csv
-!cloud_security_report.pdf
+
+# Optional: अगर CSV input files push करना है तो ये line हटाना
+# *.csv
