@@ -1,15 +1,84 @@
 from collections import defaultdict
 
 
+# ---------------- CONSTANTS ----------------
+
+SEVERITY_SCORES = {
+    "CRITICAL": 80,
+    "HIGH": 40,
+    "MEDIUM": 20,
+    "LOW": 10,
+}
+
+
+DANGEROUS_PERMISSIONS = [
+    "iam:PassRole",
+    "iam:AttachRolePolicy",
+    "iam:CreatePolicyVersion",
+    "iam:SetDefaultPolicyVersion",
+    "sts:AssumeRole",
+]
+
+
+# ---------------- HELPER FUNCTIONS ----------------
+
+def add_issue(issues, seen, problem, service, severity, reason):
+    """
+    Add unique issue to list and return its risk score.
+    """
+    if problem in seen:
+        return 0
+
+    issues.append({
+        "service": service,
+        "risk": severity,
+        "severity": severity,
+        "problem": problem,
+        "reason": reason,
+    })
+
+    seen.add(problem)
+    return SEVERITY_SCORES.get(severity, 10)
+
+
+def detect_service(action):
+    """
+    Identify cloud service from action string.
+    """
+    action = action.lower()
+
+    mapping = {
+        "s3": "S3",
+        "ec2": "EC2",
+        "iam": "IAM",
+        "lambda": "Lambda",
+        "dynamodb": "DynamoDB",
+        "logs": "CloudWatch",
+        "cloudwatch": "CloudWatch",
+        "sns": "SNS",
+        "sqs": "SQS",
+    }
+
+    for key, value in mapping.items():
+        if action.startswith(key):
+            return value
+
+    return "Other"
+
+
 # ---------------- MAIN DETECTOR ----------------
+
 def detect_misconfigurations(rules):
+    """
+    Detect IAM misconfigurations and calculate risk score.
+    """
 
     issues = []
-    risk_score = 0
     seen = set()
+    risk_score = 0
 
-    allow_map = defaultdict(list)
-    deny_map = defaultdict(list)
+    allow_map = defaultdict(set)
+    deny_map = defaultdict(set)
 
     # -------- Build Permission Maps --------
     for rule in rules:
@@ -18,276 +87,196 @@ def detect_misconfigurations(rules):
         resource = str(rule.get("Resource", ""))
 
         if effect == "Allow":
-            allow_map[action].append(resource)
+            allow_map[action].add(resource)
         elif effect == "Deny":
-            deny_map[action].append(resource)
+            deny_map[action].add(resource)
 
     # -------- Conflict Detection --------
     for action in allow_map:
         if action in deny_map:
-            problem = f"Conflict: {action} has Allow & Deny"
+            risk_score += add_issue(
+                issues,
+                seen,
+                f"Conflict: {action} has Allow & Deny",
+                detect_service(action),
+                "HIGH",
+                "Conflicting permissions may lead to unpredictable access control",
+            )
 
-            if problem not in seen:
-                issues.append(
-                    {
-                        "service": detect_service(action),
-                        "risk": "HIGH",
-                        "problem": problem,
-                        "reason": "Broad service access increases attack surface",
-                    }
-                )
-
-                seen.add(problem)
-                risk_score += 50
-
-    # -------- Misconfiguration Detection --------
+    # -------- Rule Analysis --------
     for rule in rules:
-
         effect = rule.get("Effect", "")
         action = str(rule.get("Action", ""))
         resource = str(rule.get("Resource", ""))
 
+        service = detect_service(action)
+
+        # Full Admin Access
         if effect == "Allow" and action == "*" and resource == "*":
+            risk_score += add_issue(
+                issues,
+                seen,
+                "Full Administrative Access",
+                service,
+                "CRITICAL",
+                "Complete cloud takeover possible",
+            )
 
-            problem = "Full Admin Access"
-
-            if problem not in seen:
-                issues.append(
-                    {
-                        "service": detect_service(action),
-                        "risk": "CRITICAL",
-                        "problem": problem,
-                        "reason": "Complete cloud takeover possible",
-                    }
-                )
-
-                seen.add(problem)
-
-            risk_score += 120
-
+        # Wildcard Action
         elif effect == "Allow" and "*" in action:
+            risk_score += add_issue(
+                issues,
+                seen,
+                f"Wildcard Permission: {action}",
+                service,
+                "HIGH",
+                "Wildcard actions increase attack surface",
+            )
 
-            problem = f"Wildcard Permission: {action}"
-
-            if problem not in seen:
-                issues.append(
-                    {
-                        "service": detect_service(action),  # ADDED
-                        "risk": "HIGH",
-                        "problem": problem,
-                        "reason": "Broad service access increases attack surface",
-                    }
-                )
-
-                seen.add(problem)
-
-            risk_score += 40
-
+        # All Resources Access
         elif effect == "Allow" and resource == "*":
+            risk_score += add_issue(
+                issues,
+                seen,
+                "Access to All Resources",
+                service,
+                "HIGH",
+                "Resources are not restricted",
+            )
 
-            problem = "Access to All Resources"
+        # Read-only access
+        elif effect == "Allow" and ("get" in action.lower() or "list" in action.lower()):
+            risk_score += add_issue(
+                issues,
+                seen,
+                "Read-Only Access",
+                service,
+                "LOW",
+                "Limited exposure but should be monitored",
+            )
 
-            if problem not in seen:
-                issues.append(
-                    {
-                        "service": detect_service(action),
-                        "risk": "HIGH",
-                        "problem": problem,
-                        "reason": "Access not restricted to specific assets",
-                    }
-                )
-
-                seen.add(problem)
-
-            risk_score += 35
-
-        elif effect == "Allow" and ("Get" in action or "List" in action):
-
-            problem = "Read-Only Access"
-
-            if problem not in seen:
-                issues.append(
-                    {
-                        "service": detect_service(action),
-                        "risk": "LOW",
-                        "problem": problem,
-                        "reason": "Limited data exposure risk",
-                    }
-                )
-
-                seen.add(problem)
-
-            risk_score += 10
-
-    # -------- Privilege Escalation Detection --------
-    dangerous_permissions = [
-        "iam:PassRole",
-        "iam:AttachRolePolicy",
-        "iam:CreatePolicyVersion",
-        "iam:SetDefaultPolicyVersion",
-        "sts:AssumeRole",
-    ]
-
+    # -------- Privilege Escalation --------
     for rule in rules:
-
         action = str(rule.get("Action", ""))
 
-        for perm in dangerous_permissions:
-
+        for perm in DANGEROUS_PERMISSIONS:
             if perm.lower() in action.lower():
+                risk_score += add_issue(
+                    issues,
+                    seen,
+                    f"Privilege Escalation Risk: {perm}",
+                    detect_service(action),
+                    "CRITICAL",
+                    "May allow attackers to escalate privileges",
+                )
 
-                problem = f"Privilege Escalation Risk: {perm}"
-
-                if problem not in seen:
-
-                    issues.append(
-                        {
-                            "service": detect_service(action),
-                            "risk": "CRITICAL",
-                            "problem": problem,
-                            "reason": "This permission can allow attackers to escalate privileges.",
-                        }
-                    )
-
-                    seen.add(problem)
-                    risk_score += 80
-
-    return issues, risk_score
+    return issues, min(risk_score, 100)
 
 
 # ---------------- AI EXPLANATION ----------------
+
 def generate_ai_explanation(issues):
+    """
+    Generate human-readable explanation of detected risks.
+    """
 
     if not issues:
         return "System analysis shows secure configuration with minimal risk."
 
-    explanation = ""
+    severity_count = defaultdict(int)
 
     for issue in issues:
+        severity_count[issue["risk"]] += 1
 
-        if issue["risk"] == "CRITICAL":
-            explanation += "Critical administrative access detected. "
+    explanation = []
 
-        elif issue["risk"] == "HIGH":
-            explanation += "High-risk permissions detected. "
+    if severity_count["CRITICAL"]:
+        explanation.append("Critical security risks detected.")
+    if severity_count["HIGH"]:
+        explanation.append("High-risk permissions found.")
+    if severity_count["MEDIUM"]:
+        explanation.append("Moderate misconfigurations identified.")
+    if severity_count["LOW"]:
+        explanation.append("Low-risk access patterns observed.")
 
-        elif issue["risk"] == "MEDIUM":
-            explanation += "Moderate configuration redundancy found. "
+    explanation.append("Follow least privilege principle.")
 
-        elif issue["risk"] == "LOW":
-            explanation += "Low-risk read-only access detected. "
-
-    explanation += "It is recommended to follow the least privilege principle."
-
-    return explanation
+    return " ".join(explanation)
 
 
 # ---------------- RECOMMENDATIONS ----------------
-def generate_recommendations(issues):
 
-    recs = []
+def generate_recommendations(issues):
+    """
+    Generate actionable security recommendations.
+    """
+
+    recs = set()
 
     for issue in issues:
+        severity = issue["risk"]
 
-        if issue["risk"] == "CRITICAL":
-            recs.append("Immediately remove full administrative access.")
+        if severity == "CRITICAL":
+            recs.add("Immediately remove administrative-level access.")
+        elif severity == "HIGH":
+            recs.add("Restrict wildcard permissions and scope access.")
+        elif severity == "MEDIUM":
+            recs.add("Review and clean redundant policies.")
+        elif severity == "LOW":
+            recs.add("Monitor read-only access regularly.")
 
-        elif issue["risk"] == "HIGH":
-            recs.append("Avoid wildcard (*) permissions and restrict access.")
-
-        elif issue["risk"] == "MEDIUM":
-            recs.append("Remove redundant duplicate policy rules.")
-
-        elif issue["risk"] == "LOW":
-            recs.append("Review and monitor read-only access periodically.")
-
-    if not recs:
-        recs.append("Configuration appears secure.")
-
-    return recs
+    return list(recs) if recs else ["Configuration appears secure."]
 
 
 # ---------------- POLICY CONFLICT DETECTOR ----------------
+
 def detect_policy_conflicts(rules):
+    """
+    Detect conflicting IAM policies.
+    """
 
     conflicts = []
 
     for i in range(len(rules)):
-
         for j in range(i + 1, len(rules)):
 
-            rule1 = rules[i]
-            rule2 = rules[j]
+            r1, r2 = rules[i], rules[j]
 
-            if rule1.get("Action") == rule2.get("Action") and rule1.get(
-                "Effect"
-            ) != rule2.get("Effect"):
-
-                conflicts.append(
-                    {
-                        "service": detect_service(rule1.get("Action", "")),  # ADDED
-                        "risk": "MEDIUM",
-                        "problem": f"Policy Conflict on action: {rule1.get('Action')}",
-                        "reason": "One policy allows while another denies the same action",
-                    }
-                )
+            if (
+                r1.get("Action") == r2.get("Action")
+                and r1.get("Effect") != r2.get("Effect")
+            ):
+                conflicts.append({
+                    "service": detect_service(r1.get("Action", "")),
+                    "risk": "MEDIUM",
+                    "severity": "MEDIUM",
+                    "problem": f"Policy Conflict on action: {r1.get('Action')}",
+                    "reason": "Conflicting Allow/Deny rules",
+                })
 
     return conflicts
 
 
-# ---------------- AI SECURITY SUMMARY ----------------
+# ---------------- AI SUMMARY ----------------
+
 def generate_ai_summary(issues, risk_score):
+    """
+    Generate summarized security report.
+    """
 
     if not issues:
-        return "AI Analysis: No significant security risks detected. Cloud policies appear secure."
-
-    summary = f"The analyzer detected {len(issues)} security issues with a total risk score of {risk_score}. "
+        return "No significant security risks detected."
 
     critical = sum(1 for i in issues if i["risk"] == "CRITICAL")
     high = sum(1 for i in issues if i["risk"] == "HIGH")
 
+    summary = f"{len(issues)} issues detected with risk score {risk_score}. "
+
     if critical:
-        summary += f"{critical} critical security risks were identified which may allow privilege escalation or full cloud compromise. "
-
+        summary += f"{critical} critical risks found. "
     if high:
-        summary += f"{high} high-risk permissions increase the attack surface of the cloud environment. "
+        summary += f"{high} high-risk permissions detected. "
 
-    summary += "Applying the least privilege principle and restricting wildcard permissions is recommended."
+    summary += "Apply least privilege and restrict wildcard access."
 
     return summary
-
-
-# ---------------- SERVICE DETECTOR ----------------
-def detect_service(action):
-
-    action = action.lower()
-
-    if action.startswith("s3"):
-        return "S3"
-
-    elif action.startswith("ec2"):
-        return "EC2"
-
-    elif action.startswith("iam"):
-        return "IAM"
-
-    elif action.startswith("lambda"):
-        return "Lambda"
-
-    elif action.startswith("dynamodb"):
-        return "DynamoDB"
-
-    elif action.startswith("logs"):
-        return "CloudWatch"
-
-    elif action.startswith("cloudwatch"):
-        return "CloudWatch"
-
-    elif action.startswith("sns"):
-        return "SNS"
-
-    elif action.startswith("sqs"):
-        return "SQS"
-
-    else:
-        return "Other"
